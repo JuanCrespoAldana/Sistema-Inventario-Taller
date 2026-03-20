@@ -1,0 +1,28 @@
+/* Tema general del sistema */
+@import "base/theme.css";
+
+/* Layout */
+@import "layout/sidebar.css";
+
+/* Páginas */
+@import "pages/dashboard.css";
+@import "pages/ventas.css";
+@import "pages/reparaciones.css";
+@import "pages/tecnico.css";
+
+.content {
+    flex: 1;
+    min-width: 0;          /* evita que el flex hijo desborde */
+    background: #f4f6f9;    
+    min-height: 100vh;
+    overflow-y: auto;
+    height: 100vh;
+    overflow-x: hidden;
+}
+
+.content-wrapper {
+    width: 100%;
+    padding: 30px;
+    box-sizing: border-box;
+}
+

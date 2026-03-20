@@ -1,0 +1,274 @@
+/* ==========================================
+   VARIABLES GLOBALES
+========================================== */
+:root {
+    --primary: #0b2545;
+    --primary-dark: #0b1c2d;
+    --secondary: #133c73;
+    --accent: #2563eb;
+    --bg-light: #f4f6f9;
+    --text-dark: #2c2c2c;
+
+    /* Tabla unificada */
+    --table-header-bg: #f1f3f7;
+    --table-header-color: #495057;
+    --table-border: #e1e4e8;
+    --table-hover-bg: #e8edf5;
+    --table-stripe-bg: #f8f9fa;
+    --table-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+    /* Badges */
+    --badge-radius: 6px;
+    --badge-font-size: 11px;
+
+    /* Cards */
+    --card-radius: 14px;
+    --card-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+
+/* ==========================================
+   BASE
+========================================== */
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+}
+
+/* ==========================================
+   TÍTULOS DE PÁGINA
+========================================== */
+.page-title,
+.venta-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0;
+}
+
+/* ==========================================
+   CARDS UNIFORMES
+========================================== */
+.card {
+    border-radius: var(--card-radius) !important;
+    box-shadow: var(--card-shadow) !important;
+    border: none !important;
+}
+
+.card-header {
+    background: #f8f9fb !important;
+    border-bottom: 1px solid #e9ecef !important;
+    font-weight: 600;
+    padding: 14px 20px;
+}
+
+/* ==========================================
+   SISTEMA DE TABLAS UNIFICADO
+   Aplica a: tabla-reparaciones, table-modern,
+             ventas-table, movimientos-table,
+             y cualquier .table dentro de .table-responsive
+========================================== */
+
+/* Contenedor responsivo */
+.table-responsive {
+    border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid var(--table-border);
+    box-shadow: var(--table-shadow);
+    background: #fff;
+    width: 100%;
+}
+
+/* Estilo base para TODAS las tablas del sistema */
+.tabla-reparaciones,
+.table-modern,
+.ventas-table,
+.movimientos-table,
+.table-responsive > table,
+.card-modern .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: #fff;
+    margin: 0;
+}
+
+/* ---- ENCABEZADO UNIFICADO ---- */
+.tabla-reparaciones thead,
+.table-modern thead,
+.ventas-table thead,
+.movimientos-table thead,
+.table-responsive > table thead,
+.card-modern .table thead {
+    background: linear-gradient(180deg, #f8f9fb 0%, var(--table-header-bg) 100%);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tabla-reparaciones th,
+.table-modern th,
+.ventas-table th,
+.movimientos-table th,
+.table-responsive > table th,
+.card-modern .table th {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: var(--table-header-color) !important;
+    padding: 14px 16px !important;
+    border-bottom: 2px solid var(--table-border) !important;
+    white-space: nowrap;
+}
+
+/* ---- CELDAS UNIFICADAS ---- */
+.tabla-reparaciones td,
+.table-modern td,
+.ventas-table td,
+.movimientos-table td,
+.table-responsive > table td,
+.card-modern .table td {
+    padding: 13px 16px !important;
+    border-bottom: 1px solid #f1f3f5 !important;
+    color: #212529;
+    vertical-align: middle;
+}
+
+/* ---- FILAS ALTERNAS ---- */
+.tabla-reparaciones tbody tr:nth-child(odd),
+.table-modern tbody tr:nth-child(odd),
+.ventas-table tbody tr:nth-child(odd),
+.movimientos-table tbody tr:nth-child(odd),
+.table-responsive > table tbody tr:nth-child(odd),
+.card-modern .table tbody tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+.tabla-reparaciones tbody tr:nth-child(even),
+.table-modern tbody tr:nth-child(even),
+.ventas-table tbody tr:nth-child(even),
+.movimientos-table tbody tr:nth-child(even),
+.table-responsive > table tbody tr:nth-child(even),
+.card-modern .table tbody tr:nth-child(even) {
+    background-color: var(--table-stripe-bg);
+}
+
+/* ---- HOVER UNIFICADO ---- */
+.tabla-reparaciones tbody tr:hover,
+.table-modern tbody tr:hover,
+.ventas-table tbody tr:hover,
+.movimientos-table tbody tr:hover,
+.table-responsive > table tbody tr:hover,
+.card-modern .table tbody tr:hover {
+    background-color: var(--table-hover-bg) !important;
+    transition: background-color 0.2s ease;
+}
+
+/* Borde izquierdo en hover */
+.tabla-reparaciones tbody tr:hover td:first-child,
+.table-modern tbody tr:hover td:first-child,
+.ventas-table tbody tr:hover td:first-child,
+.movimientos-table tbody tr:hover td:first-child,
+.table-responsive > table tbody tr:hover td:first-child,
+.card-modern .table tbody tr:hover td:first-child {
+    border-left: 3px solid var(--accent);
+}
+
+/* ==========================================
+   BADGES UNIFICADOS
+========================================== */
+.badge {
+    font-weight: 600 !important;
+    font-size: var(--badge-font-size) !important;
+    padding: 6px 12px !important;
+    border-radius: var(--badge-radius) !important;
+    letter-spacing: 0.3px;
+}
+
+/* ==========================================
+   BOTONES UNIFORMES
+========================================== */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+/* ==========================================
+   FORMULARIOS UNIFORMES
+========================================== */
+.form-control,
+.form-select {
+    border-radius: 8px !important;
+    border: 1px solid #d1d5db !important;
+    padding: 9px 13px !important;
+    font-size: 14px !important;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* ==========================================
+   ALERTAS
+========================================== */
+.alert {
+    border-radius: 10px;
+    border: none;
+    font-weight: 500;
+}
+
+/* ==========================================
+   ANIMACIÓN ENTRADA
+========================================== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ================================
+   ANIMACIÓN GLOBAL DE CARGA DE VISTAS
+================================ */
+
+.content-wrapper {
+    animation: vistaAparecer 0.35s ease both;
+}
+
+@keyframes vistaAparecer {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================
+   ÍCONO DEL TÍTULO DE PÁGINA
+========================================== */
+.page-title i,
+.venta-title i {
+    color: #2563eb;
+}
