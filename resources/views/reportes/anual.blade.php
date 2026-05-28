@@ -210,11 +210,11 @@
     </div>
 
     {{-- NOTA PARA CONTADOR --}}
-    <div class="no-print" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;font-size:0.82rem;color:#6c757d;">
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>Nota:</strong> Los montos de reparaciones corresponden al total cobrado al cliente (campo "Total" de la máquina).
-        La columna "Mano de obra" puede consultarse en el reporte mensual de reparaciones.
-        Las fechas son tomadas de la <strong>fecha de entrada</strong> de la orden de servicio.
+<div class="no-print" style="background:#f8fafc;border:1px solid #e9ecef;border-radius:10px;padding:14px 18px;font-size:0.82rem;color:#6c757d;">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Nota:</strong> Los montos de reparaciones corresponden al total cobrado al cliente (campo "Total" de la máquina).
+            La columna "Mano de obra" puede consultarse en el reporte mensual de reparaciones.
+            Las fechas son tomadas de la <strong>fecha de salida</strong> de la máquina.
     </div>
 
 </div>

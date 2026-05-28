@@ -98,7 +98,7 @@ class ReparacionController extends Controller
         }
 
         $ordenes = $query
-            ->orderByRaw('CAST(numero_orden AS UNSIGNED) DESC')
+            ->orderByDesc('created_at')
             ->paginate(20)
             ->withQueryString();
 
@@ -141,9 +141,23 @@ class ReparacionController extends Controller
             'maquinas.*.mano_obra' => 'nullable|numeric',
             'maquinas.*.total' => 'nullable|numeric',
             'maquinas.*.fecha_salida' => 'nullable|date',
+        ], [
+            'numero_orden.required' => 'El número de orden es obligatorio.',
+            'numero_orden.unique' => 'El número de orden ya existe.',
+            'cliente_nombre.required' => 'El nombre del cliente es obligatorio.',
+            'cliente_nombre.max' => 'El nombre del cliente no puede exceder los 255 caracteres.',
+            'telefono.max' => 'El teléfono no puede exceder los 50 caracteres.',
+            'fecha_entrada.required' => 'La fecha de entrada es obligatoria.',
+            'fecha_entrada.date' => 'La fecha de entrada debe ser una fecha válida.',
+            'maquinas.required' => 'Debe agregar al menos una máquina.',
+            'maquinas.*.descripcion.required' => 'La descripción de la máquina es obligatoria.',
+            'maquinas.*.descripcion.max' => 'La descripción de la máquina no puede exceder los 255 caracteres.',
+            'maquinas.*.estado.required' => 'El estado de la máquina es obligatorio.',
+            'maquinas.*.tecnico_id.exists' => 'El técnico seleccionado no es válido.',
         ]);
 
-        DB::transaction(function () use ($request) {
+        try {
+            DB::transaction(function () use ($request) {
 
             // 1️⃣ Crear o reutilizar cliente
             $cliente = Cliente::firstOrCreate(
@@ -181,23 +195,67 @@ class ReparacionController extends Controller
 
                 $letra++; // B, C, D...
             }
-        });
+            });
 
-        return redirect()
-            ->back()
-            ->with('success', 'Orden de reparación guardada correctamente');
+            return redirect()
+                ->back()
+                ->with('success', 'Orden de reparación guardada correctamente');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'No se pudo guardar la orden de reparación. Por favor revise los datos e intente nuevamente.');
+        }
     }
 
     public function update(Request $request, OrdenReparacion $orden)
     {
-        // ==========================
-        // ACTUALIZAR ORDEN
-        // ==========================
+        $request->validate([
+            'cliente_nombre' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:50',
+            'fecha_entrada' => 'required|date',
 
-        $orden->update([
-            'telefono' => $request->telefono,
-            'fecha_entrada' => $request->fecha_entrada,
+            'maquinas' => 'required|array|min:1',
+            'maquinas.*.descripcion' => 'required|string|max:255',
+            'maquinas.*.estado' => 'required|in:pendiente,en_reparacion,entregada',
+            'maquinas.*.tecnico_id' => 'nullable|exists:tecnicos,id',
+            'maquinas.*.mano_obra' => 'nullable|numeric|min:0',
+            'maquinas.*.total' => 'nullable|numeric|min:0',
+            'maquinas.*.fecha_salida' => 'nullable|date',
+            'maquinas.*.factura' => 'nullable|string|max:255',
+            'maquinas.*.tipo_garantia' => 'nullable|string|max:255',
+            'maquinas.*.cotizacion' => 'nullable|string|max:1000',
+        ], [
+            'cliente_nombre.required' => 'El nombre del cliente es obligatorio.',
+            'cliente_nombre.max' => 'El nombre del cliente no puede exceder los 255 caracteres.',
+            'telefono.max' => 'El teléfono no puede exceder los 50 caracteres.',
+            'fecha_entrada.required' => 'La fecha de entrada es obligatoria.',
+            'fecha_entrada.date' => 'La fecha de entrada debe ser una fecha válida.',
+            'maquinas.required' => 'Debe agregar al menos una máquina.',
+            'maquinas.*.descripcion.required' => 'La descripción de la máquina es obligatoria.',
+            'maquinas.*.descripcion.max' => 'La descripción de la máquina no puede exceder los 255 caracteres.',
+            'maquinas.*.estado.required' => 'El estado de la máquina es obligatorio.',
+            'maquinas.*.estado.in' => 'El estado de la máquina seleccionado no es válido.',
+            'maquinas.*.tecnico_id.exists' => 'El técnico seleccionado no es válido.',
+            'maquinas.*.mano_obra.numeric' => 'La mano de obra debe ser un número.',
+            'maquinas.*.mano_obra.min' => 'La mano de obra debe ser igual o mayor a cero.',
+            'maquinas.*.total.numeric' => 'El total debe ser un número.',
+            'maquinas.*.total.min' => 'El total debe ser igual o mayor a cero.',
+            'maquinas.*.fecha_salida.date' => 'La fecha de salida debe ser una fecha válida.',
         ]);
+
+        try {
+            DB::transaction(function () use ($request, $orden) {
+
+                // ==========================
+                // ACTUALIZAR ORDEN
+                // ==========================
+
+                $orden->update([
+                    'telefono' => $request->telefono,
+                    'fecha_entrada' => $request->fecha_entrada,
+                ]);
 
         if ($orden->cliente && $request->filled('cliente_nombre')) {
             $orden->cliente->update([
@@ -303,9 +361,18 @@ class ReparacionController extends Controller
             ->whereNotIn('id', $idsActuales)
             ->delete();
 
-        return redirect()
-            ->route('reparaciones.index')
-            ->with('success', 'Orden actualizada correctamente');
+            });
+
+            return redirect()
+                ->route('reparaciones.index')
+                ->with('success', 'Orden actualizada correctamente');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'No se pudo actualizar la orden. Por favor revise los datos e intente nuevamente.');
+        }
     }
 
 

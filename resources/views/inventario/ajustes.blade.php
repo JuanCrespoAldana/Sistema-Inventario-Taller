@@ -13,50 +13,65 @@
         <div style="width:100%; max-width:600px;">
 
             {{-- ALERTA ÉXITO --}}
-            @if(session('success'))
-                <div id="alertSuccess" class="alert alert-success alert-dismissible fade show shadow-sm">
-                    <i class="bi bi-check-circle me-2"></i>
-                    {{ session('success') }}
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
                 </div>
             @endif
 
             {{-- ALERTA ERROR --}}
-            @if(session('error'))
-                <div class="alert alert-danger shadow-sm">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    {{ session('error') }}
-                </div>
-            @endif
-
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
 
                     <form id="formAjuste" method="POST" action="{{ route('inventario.ajustes.store') }}">
                         @csrf
 
-                        {{-- BUSCAR PRODUCTO --}}
+                        {{-- PRODUCTOS --}}
                         <div class="mb-4">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-search me-1"></i>
-                                Buscar Producto
-                            </label>
-
-                            <input type="text" id="buscarProducto" class="form-control"
-                                placeholder="Escriba código o nombre...">
-
-                            <div id="resultados" class="list-group mt-2 shadow-sm"
-                                style="display:none; max-height:200px; overflow-y:auto;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label class="form-label fw-semibold mb-0">
+                                    <i class="bi bi-search me-1"></i>
+                                    Productos
+                                </label>
+                                <button type="button" id="btnAgregarProducto" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-plus-lg"></i> Agregar producto
+                                </button>
                             </div>
 
-                            <input type="hidden" name="producto_id" id="producto_id" required>
-                        </div>
+                            <div id="productosSeleccionados" class="row g-3 mb-3"></div>
 
-                        {{-- INFO PRODUCTO --}}
-                        <div id="infoProducto" class="alert alert-light border d-none small">
-                            <strong id="productoNombre"></strong><br>
-                            Código: <span id="productoCodigo"></span><br>
-                            Stock actual:
-                            <span id="productoStock" class="fw-bold"></span>
+                            <template id="productoRowTemplate">
+                                <div class="producto-row row g-2 align-items-end border rounded-3 p-3 position-relative">
+                                    <div class="col-md-6">
+                                        <label class="form-label visually-hidden">Buscar producto</label>
+                                        <input type="text" class="form-control producto-buscar" placeholder="Código o nombre..." autocomplete="off">
+                                        <input type="hidden" name="producto_id[]" class="producto-id">
+                                        <div class="list-group mt-1 resultados-producto d-none" style="position: relative; z-index: 10;"></div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label visually-hidden">Cantidad</label>
+                                        <input type="number" name="cantidad[]" class="form-control cantidad-producto" min="1" placeholder="Cantidad" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label mb-1">Stock actual</label>
+                                        <div class="form-control-plaintext text-secondary producto-stock">-</div>
+                                    </div>
+                                    <div class="col-md-1 text-end">
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-eliminar-producto" title="Quitar producto">×</button>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="alert alert-light border small mb-0 d-none info-producto">
+                                            <strong class="producto-nombre"></strong><br>
+                                            Código: <span class="producto-codigo"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
 
                         <div class="row g-3">
@@ -66,19 +81,14 @@
                                 <label class="form-label fw-semibold">
                                     Operación
                                 </label>
-                                <select name="tipo_operacion" id="tipo_operacion" class="form-select" required>
+                                <select name="tipo_operacion" id="tipo_operacion" class="form-select @error('tipo_operacion') is-invalid @enderror" required>
                                     <option value="">Seleccione</option>
-                                    <option value="sumar">Agregar</option>
-                                    <option value="restar">Quitar</option>
+                                    <option value="sumar" {{ old('tipo_operacion') == 'sumar' ? 'selected' : '' }}>Agregar</option>
+                                    <option value="restar" {{ old('tipo_operacion') == 'restar' ? 'selected' : '' }}>Quitar</option>
                                 </select>
-                            </div>
-
-                            {{-- CANTIDAD --}}
-                            <div class="col-6">
-                                <label class="form-label fw-semibold">
-                                    Cantidad
-                                </label>
-                                <input type="number" name="cantidad" id="cantidad" class="form-control" min="1" required>
+                                @error('tipo_operacion')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             {{-- MOTIVO --}}
@@ -86,14 +96,17 @@
                                 <label class="form-label fw-semibold">
                                     Motivo
                                 </label>
-                                <select name="referencia" id="referencia" class="form-select" required>
+                                <select name="referencia" id="referencia" class="form-select @error('referencia') is-invalid @enderror" required>
                                     <option value="">Seleccione motivo</option>
-                                    <option value="Entrada por compra">Entrada por compra</option>
-                                    <option value="Entrada por devolución">Entrada por devolución</option>
-                                    <option value="Salida por daño">Salida por daño</option>
-                                    <option value="Salida por uso interno">Salida por uso interno</option>
-                                    <option value="Ajuste inventario físico">Ajuste inventario físico</option>
+                                    <option value="Venta" {{ old('referencia') == 'Venta' ? 'selected' : '' }}>Venta</option>
+                                    <option value="Compra" {{ old('referencia') == 'Compra' ? 'selected' : '' }}>Compra</option>
+                                    <option value="Devolución" {{ old('referencia') == 'Devolución' ? 'selected' : '' }}>Devolución</option>
+                                    <option value="Uso interno" {{ old('referencia') == 'Uso interno' ? 'selected' : '' }}>Uso interno</option>
+                                    <option value="Ajuste" {{ old('referencia') == 'Ajuste' ? 'selected' : '' }}>Ajuste</option>
                                 </select>
+                                @error('referencia')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             {{-- BOTÓN --}}
@@ -131,92 +144,122 @@
         }, 3000);
 
 
-        // ================= BOTÓN DINÁMICO + SINCRONIZAR MOTIVOS =================
-        const motivosEntrada = [
-            { value: 'Entrada por compra',      label: 'Entrada por compra'      },
-            { value: 'Entrada por devolución',  label: 'Entrada por devolución'  },
-            { value: 'Ajuste inventario físico',label: 'Ajuste inventario físico'},
-        ];
-        const motivosSalida = [
-            { value: 'Salida por daño',         label: 'Salida por daño'         },
-            { value: 'Salida por uso interno',  label: 'Salida por uso interno'  },
-            { value: 'Ajuste inventario físico',label: 'Ajuste inventario físico'},
+        // ================= BOTÓN DINÁMICO =================
+        const motivosAgregar = [
+            { value: 'Compra', label: 'Compra' },
+            { value: 'Devolución', label: 'Devolución' },
+            { value: 'Ajuste', label: 'Ajuste' },
         ];
 
-        function actualizarMotivos(operacion) {
-            const sel = document.getElementById('referencia');
-            const lista = operacion === 'sumar' ? motivosEntrada : (operacion === 'restar' ? motivosSalida : []);
-            sel.innerHTML = '<option value="">Seleccione motivo</option>';
-            lista.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m.value;
-                opt.textContent = m.label;
-                sel.appendChild(opt);
+        const motivosQuitar = [
+            { value: 'Venta', label: 'Venta' },
+            { value: 'Uso interno', label: 'Uso interno' },
+            { value: 'Ajuste', label: 'Ajuste' },
+        ];
+
+        function actualizarMotivos(valor) {
+            const select = document.getElementById('referencia');
+            const valorActual = select.value;
+            select.innerHTML = '<option value="">Seleccione motivo</option>';
+
+            let lista = [];
+            if (valor === 'sumar') {
+                lista = motivosAgregar;
+            } else if (valor === 'restar') {
+                lista = motivosQuitar;
+            }
+
+            lista.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.value;
+                option.textContent = item.label;
+                if (item.value === valorActual) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
             });
+        }
+
+        function actualizarBotonOperacion(valor) {
+            let btn = document.getElementById('btnGuardar');
+
+            if (valor === 'sumar') {
+                btn.className = 'btn btn-success w-100 rounded-3';
+                btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Agregar Stock';
+            } else if (valor === 'restar') {
+                btn.className = 'btn btn-danger w-100 rounded-3';
+                btn.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Quitar Stock';
+            } else {
+                btn.className = 'btn btn-primary w-100 rounded-3';
+                btn.innerHTML = '<i class="bi bi-save me-1"></i> Guardar Ajuste';
+            }
         }
 
         document.getElementById('tipo_operacion')
             .addEventListener('change', function () {
-
-                let btn = document.getElementById('btnGuardar');
-
-                if (this.value === 'sumar') {
-                    btn.classList.remove('btn-danger');
-                    btn.classList.add('btn-success');
-                    btn.innerHTML =
-                        '<i class="bi bi-plus-circle me-1"></i> Agregar Stock';
-                }
-                else if (this.value === 'restar') {
-                    btn.classList.remove('btn-success');
-                    btn.classList.add('btn-danger');
-                    btn.innerHTML =
-                        '<i class="bi bi-dash-circle me-1"></i> Quitar Stock';
-                }
-                else {
-                    btn.classList.remove('btn-success', 'btn-danger');
-                    btn.classList.add('btn-primary');
-                    btn.innerHTML =
-                        '<i class="bi bi-save me-1"></i> Guardar Ajuste';
-                }
-
+                actualizarBotonOperacion(this.value);
                 actualizarMotivos(this.value);
             });
 
+        document.addEventListener('DOMContentLoaded', function () {
+            const operacion = document.getElementById('tipo_operacion').value;
+            actualizarBotonOperacion(operacion);
+            actualizarMotivos(operacion);
+        });
+
 
         // ================= AUTOCOMPLETE EN TIEMPO REAL =================
-        document.getElementById('buscarProducto')
-            .addEventListener('keyup', function () {
+        const busquedaProductosUrl = "{{ route('inventario.buscar.producto') }}";
 
-                let query = this.value;
+        function crearRowProducto() {
+            const template = document.getElementById('productoRowTemplate');
+            const nodo = template.content.firstElementChild.cloneNode(true);
+
+            const inputBuscar = nodo.querySelector('.producto-buscar');
+            const hiddenId = nodo.querySelector('.producto-id');
+            const stockLabel = nodo.querySelector('.producto-stock');
+            const infoContainer = nodo.querySelector('.info-producto');
+            const nombreLabel = nodo.querySelector('.producto-nombre');
+            const codigoLabel = nodo.querySelector('.producto-codigo');
+            const resultados = nodo.querySelector('.resultados-producto');
+            const btnEliminar = nodo.querySelector('.btn-eliminar-producto');
+            const cantidadInput = nodo.querySelector('.cantidad-producto');
+
+            function limpiarRow() {
+                hiddenId.value = '';
+                stockLabel.textContent = '-';
+                nombreLabel.textContent = '';
+                codigoLabel.textContent = '';
+                infoContainer.classList.add('d-none');
+            }
+
+            inputBuscar.addEventListener('input', function () {
+                const query = this.value.trim();
+
+                hiddenId.value = '';
+                stockLabel.textContent = '-';
+                infoContainer.classList.add('d-none');
 
                 if (query.length < 1) {
-                    document.getElementById('resultados').style.display = 'none';
+                    resultados.classList.add('d-none');
+                    resultados.innerHTML = '';
                     return;
                 }
 
-                fetch("{{ route('inventario.buscar.producto') }}?q=" + query)
+                fetch(busquedaProductosUrl + '?q=' + encodeURIComponent(query))
                     .then(response => response.json())
                     .then(data => {
-
-                        let resultados =
-                            document.getElementById('resultados');
-
                         resultados.innerHTML = '';
 
-                        if (data.length === 0) {
-                            resultados.style.display = 'none';
+                        if (!data.length) {
+                            resultados.classList.add('d-none');
                             return;
                         }
 
                         data.forEach(producto => {
-
-                            let item = document.createElement('a');
-
-                            item.classList.add(
-                                'list-group-item',
-                                'list-group-item-action'
-                            );
-
+                            const item = document.createElement('a');
+                            item.classList.add('list-group-item', 'list-group-item-action');
+                            item.href = '#';
                             item.innerHTML = `
                                 <strong>${producto.codigo}</strong>
                                 - ${producto.nombre}
@@ -224,35 +267,52 @@
                                 <small>Stock: ${producto.stock}</small>
                             `;
 
-                            item.onclick = function () {
-
-                                document.getElementById('producto_id').value =
-                                    producto.id;
-
-                                document.getElementById('buscarProducto').value =
-                                    producto.codigo + ' - ' + producto.nombre;
-
-                                document.getElementById('productoNombre')
-                                    .innerText = producto.nombre;
-
-                                document.getElementById('productoCodigo')
-                                    .innerText = producto.codigo;
-
-                                document.getElementById('productoStock')
-                                    .innerText = producto.stock;
-
-                                document.getElementById('infoProducto')
-                                    .classList.remove('d-none');
-
-                                resultados.style.display = 'none';
-                            };
+                            item.addEventListener('click', function (event) {
+                                event.preventDefault();
+                                hiddenId.value = producto.id;
+                                inputBuscar.value = producto.codigo + ' - ' + producto.nombre;
+                                stockLabel.textContent = producto.stock;
+                                nombreLabel.textContent = producto.nombre;
+                                codigoLabel.textContent = producto.codigo;
+                                infoContainer.classList.remove('d-none');
+                                resultados.classList.add('d-none');
+                            });
 
                             resultados.appendChild(item);
                         });
 
-                        resultados.style.display = 'block';
+                        resultados.classList.remove('d-none');
                     });
             });
+
+            inputBuscar.addEventListener('blur', function () {
+                setTimeout(() => resultados.classList.add('d-none'), 150);
+            });
+
+            btnEliminar.addEventListener('click', function () {
+                nodo.remove();
+                if (document.querySelectorAll('#productosSeleccionados .producto-row').length === 0) {
+                    agregarProductoRow();
+                }
+            });
+
+            return nodo;
+        }
+
+        function agregarProductoRow() {
+            const contenedor = document.getElementById('productosSeleccionados');
+            contenedor.appendChild(crearRowProducto());
+        }
+
+        document.getElementById('btnAgregarProducto')
+            .addEventListener('click', function () {
+                agregarProductoRow();
+            });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            actualizarBotonOperacion(document.getElementById('tipo_operacion').value);
+            agregarProductoRow();
+        });
 
     </script>
 @endpush

@@ -39,6 +39,19 @@ class VentaStoreRequest extends FormRequest
         return [
             'productos.required' => 'Debe agregar al menos un producto a la venta.',
             'productos.min' => 'Debe agregar al menos un producto a la venta.',
+            'productos.*.producto_id.required' => 'El producto es obligatorio.',
+            'productos.*.producto_id.exists' => 'El producto seleccionado no es válido.',
+            'productos.*.cantidad.required' => 'La cantidad es obligatoria.',
+            'productos.*.cantidad.integer' => 'La cantidad debe ser un número entero.',
+            'productos.*.cantidad.min' => 'La cantidad debe ser al menos 1.',
+            'productos.*.descuento.numeric' => 'El descuento debe ser numérico.',
+
+            'total.required' => 'El subtotal es obligatorio.',
+            'total.numeric' => 'El subtotal debe ser numérico.',
+            'descuento.required' => 'El descuento total es obligatorio.',
+            'descuento.numeric' => 'El descuento debe ser numérico.',
+            'total_final.required' => 'El total final es obligatorio.',
+            'total_final.numeric' => 'El total final debe ser numérico.',
         ];
     }
 }

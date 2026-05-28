@@ -8,20 +8,6 @@
 
 @section('content')
 
-    {{-- ALERTS --}}
-    @if(session('success'))
-        <div class="alert alert-success alert-modern auto-dismiss">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger alert-modern auto-dismiss">
-            {{ session('error') }}
-        </div>
-    @endif
-
-
     <div class="card card-modern">
         <div class="card-body">
 

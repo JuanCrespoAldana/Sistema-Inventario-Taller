@@ -9,7 +9,7 @@ class TecnicoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Tecnico::orderBy('nombre', 'asc');
+        $query = Tecnico::orderByDesc('created_at');
 
         if ($request->filled('nombre')) {
             $query->where('nombre', 'like', '%' . $request->nombre . '%');
@@ -33,6 +33,9 @@ class TecnicoController extends Controller
     {
         $request->validate([
             'nombre' => 'required|string|max:255',
+        ], [
+            'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.max' => 'El nombre no puede exceder los 255 caracteres.',
         ]);
 
         Tecnico::create([

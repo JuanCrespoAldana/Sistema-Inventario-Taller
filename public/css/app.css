@@ -12,12 +12,11 @@
 
 .content {
     flex: 1;
-    min-width: 0;          /* evita que el flex hijo desborde */
-    background: #f4f6f9;    
+    min-width: 0;
+    background: #f4f6f9;
     min-height: 100vh;
-    overflow-y: auto;
-    height: 100vh;
     overflow-x: hidden;
+    /* SIN overflow-y ni height fijo: eso bloquea los modales de Bootstrap */
 }
 
 .content-wrapper {

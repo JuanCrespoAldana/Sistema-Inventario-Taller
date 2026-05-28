@@ -42,7 +42,7 @@
                 <div class="grid">
                     <div class="form-group">
                         <label>Cantidad</label>
-                        <input type="number" class="form-control" id="cantidad" min="1" value="1">
+                        <input type="number" name="cantidad" class="form-control" id="cantidad" min="1" value="{{ old('cantidad', 1) }}">
                     </div>
 
                     <div class="form-group">
@@ -54,7 +54,7 @@
                 <div class="grid">
                     <div class="form-group">
                         <label>Descuento del producto</label>
-                        <input type="text" class="form-control" id="descuento_producto" value="0">
+                        <input type="text" name="descuento_producto" class="form-control" id="descuento_producto" value="{{ old('descuento_producto', 0) }}">
                     </div>
 
                     <div class="form-group">
@@ -139,7 +139,7 @@
 
     {{-- JS --}}
     <script>
-        const productos = @json($productos);
+        const buscadorUrl = "{{ route('inventario.buscar.producto') }}";
         let carrito = [];
         let productoActual = null;
 
@@ -171,23 +171,38 @@
                 .trim();
         }
 
+        function buscarProductos(query) {
+            const q = normalizar(query);
+            if (!q) {
+                autocomplete.innerHTML = '';
+                autocomplete.style.display = 'none';
+                return;
+            }
+
+            fetch(buscadorUrl + '?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    autocomplete.innerHTML = '';
+
+                    if (!data.length) {
+                        autocomplete.style.display = 'none';
+                        return;
+                    }
+
+                    data.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        div.innerHTML = `<div>${p.codigo} — ${p.nombre}</div><div>Stock: ${p.stock}</div>`;
+                        div.onclick = () => seleccionar(p);
+                        autocomplete.appendChild(div);
+                    });
+
+                    autocomplete.style.display = 'block';
+                });
+        }
+
         buscador.addEventListener('input', () => {
-            const q = normalizar(buscador.value);
-            autocomplete.innerHTML = '';
-            if (!q) return autocomplete.style.display = 'none';
-
-            productos.filter(p => {
-                return normalizar(p.codigo).includes(q) ||
-                    normalizar(p.nombre).includes(q);
-            }).forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'autocomplete-item';
-                div.innerHTML = `<div>${p.codigo} — ${p.nombre}</div><div>Stock: ${p.stock}</div>`;
-                div.onclick = () => seleccionar(p);
-                autocomplete.appendChild(div);
-            });
-
-            autocomplete.style.display = 'block';
+            buscarProductos(buscador.value);
         });
 
         function seleccionar(p) {
@@ -216,15 +231,34 @@
         });
 
         document.getElementById('agregar').onclick = () => {
-            if (!productoActual) return alert('Seleccione un producto');
+            if (!productoActual) return showAppAlert('Seleccione un producto', 'warning');
 
-            carrito.push({
-                producto_id: productoActual.id,
-                nombre: productoActual.nombre,
-                cantidad: parseInt(cantidad.value),
-                precio: productoActual.precio_venta,
-                descuento: valorNumerico(descuentoProd),
-            });
+            const cantidadSeleccionada = parseInt(cantidad.value);
+            if (cantidadSeleccionada <= 0) {
+                return showAppAlert('Ingrese una cantidad válida', 'warning');
+            }
+
+            const cantidadEnCarrito = carrito
+                .filter(item => item.producto_id === productoActual.id)
+                .reduce((sum, item) => sum + item.cantidad, 0);
+
+            if (cantidadSeleccionada + cantidadEnCarrito > productoActual.stock) {
+                return showAppAlert(`Stock insuficiente. Disponible: ${productoActual.stock - cantidadEnCarrito}`, 'warning');
+            }
+
+            const existenteIndex = carrito.findIndex(item => item.producto_id === productoActual.id);
+            if (existenteIndex !== -1) {
+                carrito[existenteIndex].cantidad += cantidadSeleccionada;
+                carrito[existenteIndex].descuento += valorNumerico(descuentoProd);
+            } else {
+                carrito.push({
+                    producto_id: productoActual.id,
+                    nombre: productoActual.nombre,
+                    cantidad: cantidadSeleccionada,
+                    precio: productoActual.precio_venta,
+                    descuento: valorNumerico(descuentoProd),
+                });
+            }
 
             limpiar();
             render();
@@ -289,7 +323,7 @@
         document.querySelector('form').addEventListener('submit', e => {
             if (carrito.length === 0) {
                 e.preventDefault();
-                alert('Agrega al menos un producto');
+                showAppAlert('Agrega al menos un producto', 'warning');
             }
         });
 

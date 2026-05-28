@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\MovimientoInventario;
 use App\Models\Producto;
+use App\Services\Inventario\InventarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class InventarioController extends Controller
 {
@@ -23,7 +25,14 @@ class InventarioController extends Controller
             });
         }
 
-        $productos = $query->orderBy('nombre')
+        // Filtro por stock bajo o crítico
+        if (request('filtro_stock') === 'bajo') {
+            $query->whereBetween('stock', [1, 2]);
+        } elseif (request('filtro_stock') === 'critico') {
+            $query->where('stock', 0);
+        }
+
+        $productos = $query->orderByDesc('created_at')
             ->paginate(12)
             ->withQueryString();
 
@@ -85,42 +94,49 @@ class InventarioController extends Controller
     public function guardarAjuste(Request $request)
     {
         $request->validate([
-            'producto_id' => 'required|exists:productos,id',
+            'producto_id' => 'required|array|min:1',
+            'producto_id.*' => 'required|distinct|exists:productos,id',
+            'cantidad' => 'required|array|min:1',
+            'cantidad.*' => 'required|integer|min:1',
             'tipo_operacion' => 'required|in:sumar,restar',
-            'cantidad' => 'required|integer|min:1',
-            'referencia' => 'required|string|max:255',
+            'referencia' => 'required|string|in:Venta,Compra,Devolución,Uso interno,Ajuste',
+        ], [
+            'producto_id.required' => 'Debe seleccionar al menos un producto.',
+            'producto_id.*.exists' => 'El producto seleccionado no es válido.',
+            'cantidad.required' => 'La cantidad es obligatoria.',
+            'cantidad.*.integer' => 'La cantidad debe ser un número entero.',
+            'cantidad.*.min' => 'La cantidad debe ser al menos 1.',
+            'tipo_operacion.required' => 'Debe seleccionar el tipo de operación.',
+            'referencia.required' => 'Debe seleccionar un motivo para el ajuste.',
         ]);
 
+        $productoIds = $request->input('producto_id', []);
+        $cantidades = $request->input('cantidad', []);
+
         try {
-            DB::transaction(function () use ($request) {
-
-                $producto = Producto::findOrFail($request->producto_id);
-
-                $cantidad = $request->cantidad;
-
-                if ($request->tipo_operacion == 'restar') {
-
-                    if ($producto->stock < $cantidad) {
-                        throw new \Exception("Stock insuficiente. Stock actual: {$producto->stock} unidades.");
+            DB::transaction(function () use ($productoIds, $cantidades, $request) {
+                foreach ($productoIds as $index => $productoId) {
+                    $cantidad = isset($cantidades[$index]) ? (int) $cantidades[$index] : 0;
+                    if ($cantidad <= 0) {
+                        continue;
                     }
 
-                    $producto->decrement('stock', $cantidad);
-
-                    $tipoMovimiento = 'salida';
-
-                } else {
-
-                    $producto->increment('stock', $cantidad);
-
-                    $tipoMovimiento = 'entrada';
+                    if ($request->tipo_operacion == 'restar') {
+                        app(InventarioService::class)->salida(
+                            $productoId,
+                            $cantidad,
+                            $request->referencia,
+                            null
+                        );
+                    } else {
+                        app(InventarioService::class)->entrada(
+                            $productoId,
+                            $cantidad,
+                            $request->referencia,
+                            null
+                        );
+                    }
                 }
-
-                MovimientoInventario::create([
-                    'producto_id' => $producto->id,
-                    'tipo' => $tipoMovimiento,
-                    'cantidad' => $cantidad,
-                    'referencia' => $request->referencia,
-                ]);
             });
 
             return redirect()
@@ -136,8 +152,12 @@ class InventarioController extends Controller
 
     public function buscarProducto(Request $request)
     {
-        $productos = Producto::where('codigo', 'like', '%' . $request->q . '%')
-            ->orWhere('nombre', 'like', '%' . $request->q . '%')
+        $productos = Producto::where('activo', 1)
+            ->where(function ($query) use ($request) {
+                $query->where('codigo', 'like', '%' . $request->q . '%')
+                    ->orWhere('nombre', 'like', '%' . $request->q . '%');
+            })
+            ->orderBy('nombre')
             ->limit(10)
             ->get();
 
@@ -147,28 +167,42 @@ class InventarioController extends Controller
     public function update(Request $request, Producto $producto)
     {
         $request->validate([
-            'codigo' => 'required|unique:productos,codigo,' . $producto->id,
+            'codigo' => ['required', Rule::unique('productos', 'codigo')->ignore($producto->id)->where('activo', 1)],
             'nombre' => 'required|string|max:255',
             'modelo' => 'nullable|string|max:255',
             'precio_compra' => 'required',
             'precio_venta' => 'required',
+        ], [
+            'codigo.required' => 'El código es obligatorio.',
+            'codigo.unique' => 'El código ya está en uso por otro producto activo.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'precio_compra.required' => 'El precio de compra es obligatorio.',
+            'precio_venta.required' => 'El precio de venta es obligatorio.',
         ]);
 
         // 🔥 LIMPIAR PUNTOS
         $precioCompra = str_replace('.', '', $request->precio_compra);
         $precioVenta = str_replace('.', '', $request->precio_venta);
 
-        $producto->update([
-            'codigo' => $request->codigo,
-            'nombre' => $request->nombre,
-            'modelo' => $request->modelo,
-            'precio_compra' => $precioCompra,
-            'precio_venta' => $precioVenta,
-        ]);
+        try {
+            $producto->update([
+                'codigo' => $request->codigo,
+                'nombre' => $request->nombre,
+                'modelo' => $request->modelo,
+                'precio_compra' => $precioCompra,
+                'precio_venta' => $precioVenta,
+            ]);
 
-        return redirect()
-            ->route('inventario.index')
-            ->with('success', 'Producto actualizado correctamente.');
+            return redirect()
+                ->route('inventario.index')
+                ->with('success', 'Producto actualizado correctamente.');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'No se pudo actualizar el producto. Por favor intente nuevamente.');
+        }
     }
 
     public function destroy(Producto $producto)
@@ -190,29 +224,90 @@ class InventarioController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'codigo' => 'required|unique:productos,codigo',
+            'codigo' => ['required', Rule::unique('productos', 'codigo')->where('activo', 1)],
             'nombre' => 'required|string|max:255',
             'modelo' => 'nullable|string|max:255',
             'precio_compra' => 'required',
             'precio_venta' => 'required',
             'stock' => 'nullable|integer|min:0'
+        ], [
+            'codigo.required' => 'El código es obligatorio.',
+            'codigo.unique' => 'El código ya está en uso por otro producto activo.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'precio_compra.required' => 'El precio de compra es obligatorio.',
+            'precio_venta.required' => 'El precio de venta es obligatorio.',
+            'stock.integer' => 'El stock debe ser un número entero.',
+            'stock.min' => 'El stock no puede ser negativo.',
         ]);
 
-        $precioCompra = (int) str_replace('.', '', $request->precio_compra);
-        $precioVenta = (int) str_replace('.', '', $request->precio_venta);
+        try {
+            $precioCompra = (int) str_replace('.', '', $request->precio_compra);
+            $precioVenta = (int) str_replace('.', '', $request->precio_venta);
+            // Si existe un producto inactivo con el mismo código, lo reactivamos
+            $existing = Producto::where('codigo', $request->codigo)->first();
 
-        $producto = Producto::create([
-            'codigo' => $request->codigo,
-            'nombre' => $request->nombre,
-            'modelo' => $request->modelo,
-            'precio_compra' => $precioCompra,
-            'precio_venta' => $precioVenta,
-            'stock' => $request->stock ?? 0,
-            'activo' => 1
-        ]);
+            if ($existing && $existing->activo == 0) {
+                $existing->update([
+                    'nombre' => $request->nombre,
+                    'modelo' => $request->modelo,
+                    'precio_compra' => $precioCompra,
+                    'precio_venta' => $precioVenta,
+                    'activo' => 1,
+                ]);
 
-        return redirect()
-            ->route('inventario.index')
-            ->with('success', 'Producto creado correctamente.');
+                // Ajustar stock si se proporcionó un stock inicial
+                $stockSolicitado = (int) ($request->stock ?? 0);
+                if ($stockSolicitado > $existing->stock) {
+                    $diferencia = $stockSolicitado - $existing->stock;
+                    app(InventarioService::class)->entrada(
+                        $existing->id,
+                        $diferencia,
+                        'Reactivación - stock inicial',
+                        null
+                    );
+                } elseif ($stockSolicitado < $existing->stock) {
+                    $diferencia = $existing->stock - $stockSolicitado;
+                    // Intentamos restar la diferencia vía salida (validará stock)
+                    app(InventarioService::class)->salida(
+                        $existing->id,
+                        $diferencia,
+                        'Reactivación - ajuste stock',
+                        null
+                    );
+                }
+
+                $producto = $existing;
+
+            } else {
+                $producto = Producto::create([
+                    'codigo' => $request->codigo,
+                    'nombre' => $request->nombre,
+                    'modelo' => $request->modelo,
+                    'precio_compra' => $precioCompra,
+                    'precio_venta' => $precioVenta,
+                    'stock' => 0,
+                    'activo' => 1
+                ]);
+
+                if (($request->stock ?? 0) > 0) {
+                    app(InventarioService::class)->entrada(
+                        $producto->id,
+                        (int) $request->stock,
+                        'Stock inicial',
+                        null
+                    );
+                }
+            }
+
+            return redirect()
+                ->route('inventario.index')
+                ->with('success', 'Producto creado correctamente.');
+
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'No se pudo crear el producto. Por favor intente nuevamente.');
+        }
     }
 }

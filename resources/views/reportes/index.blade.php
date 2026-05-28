@@ -126,9 +126,15 @@
     <div class="reportes-hero">
         <h2><i class="bi bi-bar-chart-fill me-2"></i>Módulo de Reportes</h2>
         <p>Centro de análisis e inteligencia operativa. Consulta el rendimiento del negocio por período.</p>
+        @php
+            $mesesEs = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
+            $mesActual = (int) date('n');
+            $anioActual = date('Y');
+            $periodoActivo = ($mesesEs[$mesActual] ?? date('F')) . ' ' . $anioActual;
+        @endphp
         <span class="hero-badge">
             <i class="bi bi-calendar3"></i>
-            Período activo: <strong>{{ date('F Y') }}</strong>
+            Período activo: <strong>{{ $periodoActivo }}</strong>
         </span>
     </div>
 
@@ -281,7 +287,7 @@
                 <div class="rc-top">
                     <div class="rc-ico" style="background:#f5f3ff;color:#7c3aed;"><i class="bi bi-calendar-range"></i></div>
                     <div>
-                        <p class="rc-title">Resumen Anual</p>
+                        <p class="rc-title">Resumen</p>
                         <p class="rc-desc">Desglose mes a mes de todo el año. Ideal para el contador y cierre fiscal.</p>
                     </div>
                 </div>
@@ -291,8 +297,8 @@
                     <span class="rc-tag">12 meses</span>
                 </div>
                 <div class="rc-foot">
-                    <a href="{{ route('reportes.anual') }}" class="btn-go" style="background:#7c3aed;color:white;">
-                        <i class="bi bi-arrow-right-circle-fill"></i> Abrir Resumen Anual
+                    <a href="{{ route('reportes.resumen') }}" class="btn-go" style="background:#7c3aed;color:white;">
+                        <i class="bi bi-arrow-right-circle-fill"></i> Abrir Resumen
                     </a>
                 </div>
             </div>

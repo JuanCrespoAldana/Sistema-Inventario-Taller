@@ -6,6 +6,8 @@ use Carbon\Carbon;
 use App\Models\Venta;
 use App\Models\OrdenMaquina;
 use App\Models\Tecnico;
+use App\Models\Producto;
+use App\Models\MovimientoInventario;
 use Illuminate\Support\Facades\DB;
 
 class ReporteService
@@ -31,16 +33,14 @@ class ReporteService
         $totalVentasMes = $ventas->sum('total_final');
 
         // ================= REPARACIONES =================
-        // Filtrar por fecha_entrada de la orden (campo real de negocio),
-        // NO por created_at de orden_maquinas (solo fecha de importación a BD).
+        // Filtrar por fecha_salida de la máquina, no por fecha de creación de la orden.
         $reparaciones = OrdenMaquina::with(['orden.cliente', 'tecnico'])
-            ->join('ordenes_reparacion', 'orden_maquinas.orden_id', '=', 'ordenes_reparacion.id')
-            ->whereBetween('ordenes_reparacion.fecha_entrada', [
+            ->whereNotNull('fecha_salida')
+            ->whereBetween('fecha_salida', [
                 $inicio->toDateString(),
                 $fin->toDateString(),
             ])
-            ->orderByDesc('ordenes_reparacion.fecha_entrada')
-            ->select('orden_maquinas.*')
+            ->orderByDesc('fecha_salida')
             ->get();
 
         $totalReparacionesMes = $reparaciones->sum('total');
@@ -102,9 +102,9 @@ class ReporteService
                 ->first();
 
             $reparaciones = DB::table('orden_maquinas')
-                ->join('ordenes_reparacion', 'orden_maquinas.orden_id', '=', 'ordenes_reparacion.id')
-                ->whereBetween('ordenes_reparacion.fecha_entrada', [$inicio->toDateString(), $fin->toDateString()])
-                ->selectRaw('COUNT(orden_maquinas.id) as count, COALESCE(SUM(orden_maquinas.total),0) as total')
+                ->whereNotNull('fecha_salida')
+                ->whereBetween('fecha_salida', [$inicio->toDateString(), $fin->toDateString()])
+                ->selectRaw('COUNT(id) as count, COALESCE(SUM(total),0) as total')
                 ->first();
 
             $tv = floatval($ventas->total ?? 0);
@@ -130,6 +130,35 @@ class ReporteService
             'totalAnioRep'    => $totalAnioRep,
             'totalAnio'       => $totalAnioVentas + $totalAnioRep,
             'anio'            => $anio,
+        ];
+    }
+
+    public function generarReporteInventario($mes, $anio)
+    {
+        $productos = Producto::where('activo', 1)
+            ->orderBy('nombre')
+            ->get();
+
+        $totalCompra = $productos->sum(fn($p) => $p->precio_compra * $p->stock);
+        $totalVenta  = $productos->sum(fn($p) => $p->precio_venta * $p->stock);
+        $margenPot   = $totalVenta - $totalCompra;
+        $criticos    = $productos->where('stock', 0)->count();
+        $bajos       = $productos->whereBetween('stock', [1, 2])->count();
+
+        $movimientos = MovimientoInventario::with('producto')
+            ->whereYear('created_at', $anio)
+            ->whereMonth('created_at', $mes)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return [
+            'productos'    => $productos,
+            'movimientos'  => $movimientos,
+            'totalCompra'  => $totalCompra,
+            'totalVenta'   => $totalVenta,
+            'margenPot'    => $margenPot,
+            'criticos'     => $criticos,
+            'bajos'        => $bajos,
         ];
     }
 }

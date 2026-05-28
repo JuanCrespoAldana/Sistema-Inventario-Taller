@@ -17,14 +17,6 @@
             {{-- FILTROS --}}
             @include('reparaciones.partials.filtros')
 
-            {{-- MENSAJE SUCCESS --}}
-            @if (session('success'))
-                <div class="alert alert-success alert-dismissible fade show mb-4" id="alert-success" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-
             <div class="table-responsive">
                 <table class="table tabla-reparaciones">
                     <thead class="tabla-header">
@@ -156,9 +148,6 @@
         </div>
     </div>
 
-    {{-- MODAL --}}
-    @include('reparaciones.partials.modales')
-
     <script>
         function verOrden(id) {
             const url = `{{ route('reparaciones.show', ':id') }}`.replace(':id', id);
@@ -238,16 +227,12 @@
         }
 
         function mostrarAlertaGlobal(mensaje, tipo) {
-            const alerta = document.createElement('div');
-            alerta.className = `alert alert-${tipo} alert-dismissible fade show`;
-            alerta.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;min-width:300px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
-            alerta.innerHTML = `${mensaje}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            document.body.appendChild(alerta);
-            setTimeout(() => { alerta.classList.remove('show'); setTimeout(() => alerta.remove(), 400); }, 3000);
+            showAppAlert(mensaje, tipo === 'danger' ? 'danger' : (tipo === 'success' ? 'success' : 'warning'));
         }
 
-        function eliminarOrden(id) {
-            if (!confirm('¿Seguro que deseas eliminar esta orden de reparación?')) return;
+        async function eliminarOrden(id) {
+            const confirmed = await confirmDialog('¿Seguro que deseas eliminar esta orden de reparación?');
+            if (!confirmed) return;
 
             const form = document.getElementById('form-eliminar');
             form.action = `{{ route('reparaciones.destroy', ':id') }}`.replace(':id', id);
@@ -449,3 +434,7 @@
         });
     </script>
 @endsection
+
+@push('modals')
+    @include('reparaciones.partials.modales')
+@endpush

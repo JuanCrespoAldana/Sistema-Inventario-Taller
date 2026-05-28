@@ -117,7 +117,7 @@
                         <th class="text-end no-print">Participación</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tbody-tec">
                     @forelse($prod as $nombre => $datos)
                         @php $pct = $sumaTotal > 0 ? round(($datos['total']/$sumaTotal)*100,1) : 0; @endphp
                         <tr>
@@ -159,6 +159,16 @@
                         </tr>
                     @endforelse
                 </tbody>
+                
+                <div class="no-print d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pag-ctrl-tec" style="background:#f8fafc;display:none!important;">
+                    <span id="pag-info-tec" style="font-size:0.82rem;color:#6c757d;"></span>
+                    <span id="pag-texto-tec" style="font-size:0.82rem;color:#6c757d;"></span>
+                    <nav><ul class="pagination pagination-sm mb-0">
+                        <li class="page-item" id="pag-prev-tec"><a class="page-link" href="#">‹ Anterior</a></li>
+                        <li class="page-item disabled"><span class="page-link" id="pag-num-tec"></span></li>
+                        <li class="page-item" id="pag-next-tec"><a class="page-link" href="#">Siguiente ›</a></li>
+                    </ul></nav>
+                </div>
                 @if(count($prod) > 0)
                 <tfoot>
                     <tr>
@@ -176,3 +186,33 @@
 
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPag('tbody-tec','pag-ctrl-tec','pag-prev-tec','pag-next-tec','pag-num-tec','pag-texto-tec','pag-info-tec',10);
+});
+function initPag(tbodyId,ctrlId,prevId,nextId,numId,textoId,infoId,pageSize){
+    const tbody=document.getElementById(tbodyId);
+    if(!tbody)return;
+    const rows=Array.from(tbody.querySelectorAll('tr')).filter(r=>!r.querySelector('.empty-state'));
+    if(rows.length<=pageSize)return;
+    let page=1;
+    const total=rows.length,pages=Math.ceil(total/pageSize);
+    const ctrl=document.getElementById(ctrlId);
+    ctrl.style.removeProperty('display');ctrl.style.display='flex';
+    function render(){
+        rows.forEach((r,i)=>{r.style.display=(i>=(page-1)*pageSize&&i<page*pageSize)?'':'none';});
+        const desde=(page-1)*pageSize+1,hasta=Math.min(page*pageSize,total);
+        document.getElementById(textoId).textContent=`Mostrando ${desde}–${hasta} de ${total} registros`;
+        document.getElementById(numId).textContent=`Pág. ${page} / ${pages}`;
+        if(infoId&&document.getElementById(infoId)) document.getElementById(infoId).textContent=`${desde}–${hasta} de ${total}`;
+        document.getElementById(prevId).classList.toggle('disabled',page===1);
+        document.getElementById(nextId).classList.toggle('disabled',page===pages);
+    }
+    document.getElementById(prevId).querySelector('a').addEventListener('click',e=>{e.preventDefault();if(page>1){page--;render();}});
+    document.getElementById(nextId).querySelector('a').addEventListener('click',e=>{e.preventDefault();if(page<pages){page++;render();}});
+    render();
+}
+</script>
+@endpush

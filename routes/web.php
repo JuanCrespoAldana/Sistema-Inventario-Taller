@@ -180,4 +180,7 @@ Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::get('/anual', [ReporteController::class, 'anual'])
         ->name('anual');
 
+    Route::get('/resumen', [ReporteController::class, 'resumen'])
+        ->name('resumen');
+
 });

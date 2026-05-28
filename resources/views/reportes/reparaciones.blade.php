@@ -26,15 +26,18 @@
 
     .rpt-table { margin:0; }
     .rpt-table thead tr { background:#f1f5f9; }
-    .rpt-table thead th { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#64748b;padding:11px 16px;border:none;border-bottom:1px solid #e2e8f0; }
+    .rpt-table thead th { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#64748b;padding:11px 16px;border:none;border-bottom:1px solid #e2e8f0;text-align:center; }
     .rpt-table tbody tr { border-bottom:1px solid #f1f5f9; }
-    .rpt-table tbody tr:hover { background:#fafbfc; }
-    .rpt-table td { padding:10px 16px;font-size:0.87rem;color:#374151;border:none;vertical-align:middle; }
+    .rpt-table tbody tr:nth-child(even) { background:#f8fafc; }
+    .rpt-table tbody tr:hover { background:#e7f1ff; }
+    .rpt-table td { padding:10px 16px;font-size:0.87rem;color:#374151;border:none;vertical-align:middle;text-align:center; }
     .rpt-table tfoot td { background:#f8fafc;font-weight:700;font-size:0.88rem;padding:13px 16px;border-top:2px solid #e2e8f0;color:#1e293b; }
     .val-positivo { font-weight:700;color:#16a34a; }
     .badge-tec { background:#eef2ff;color:#4338ca;padding:3px 8px;border-radius:6px;font-size:0.75rem;font-weight:600; }
     .badge-ord { background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:0.73rem;font-weight:700;font-family:monospace; }
     .badge-cli { background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-size:0.73rem;font-weight:600; }
+    .date-muted { color:#6c757d;font-size:0.86rem; }
+    .total-badge { display:inline-block;padding:6px 10px;border-radius:8px;background:linear-gradient(90deg,#ecfff2,#e6fff8);color:#065f46;font-weight:800;border:1px solid #c6f6e5; }
     .empty-state { text-align:center;padding:50px 20px;color:#9ca3af; }
     .empty-state i { font-size:2.5rem;display:block;margin-bottom:10px;opacity:0.4; }
     @media print {
@@ -67,7 +70,7 @@
             <small>
                 <i class="bi bi-calendar3 me-1"></i>
                 {{ $mesNombre }} {{ $anio }} &nbsp;·&nbsp; {{ $countR }} máquinas · {{ $ordenes }} órdenes
-                <span class="no-print" style="color:#9ca3af;"> — filtrado por fecha de entrada de la orden</span>
+                <span class="no-print" style="color:#9ca3af;"> — filtrado por fecha de salida de la máquina</span>
             </small>
         </div>
     </div>
@@ -99,86 +102,44 @@
 
     <div class="rpt-card">
         <div class="rpt-card-head">
-            <span><i class="bi bi-table me-2"></i>Detalle de Reparaciones — {{ $mesNombre }} {{ $anio }}</span>
-            <span class="no-print d-flex align-items-center gap-2">
-                <span id="pag-info-rep" style="font-size:0.8rem;color:#6c757d;"></span>
-            </span>
+            <span>Reparaciones por Fecha de Salida</span>
+            <small>Filtradas por rango de fechas</small>
         </div>
         <div class="table-responsive">
             <table class="table rpt-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>N° Orden</th>
-                        <th>Cliente</th>
-                        <th>Descripción</th>
+                        <th>Orden</th>
                         <th>Técnico</th>
-                        <th>Fecha entrada</th>
-                        <th class="text-end">Mano obra</th>
-                        <th class="text-end">Total</th>
+                        <th>Fecha de Salida</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-rep">
-                    @forelse($listaRep as $i => $row)
+                    @forelse($reparaciones as $reparacion)
                         <tr>
-                            <td style="color:#9ca3af;font-size:0.78rem;">{{ $i + 1 }}</td>
                             <td>
-                                @if($row->orden)
-                                    <span class="badge-ord">{{ $row->orden->numero_orden ?? '#'.$row->orden_id }}</span>
-                                @else
-                                    <span style="color:#9ca3af;">—</span>
-                                @endif
+                                <span class="badge-ord">{{ $reparacion->orden->numero_orden ?? ('#'.$reparacion->orden_id) }}</span>
                             </td>
+                            <td>{{ $reparacion->tecnico->nombre ?? 'Sin técnico' }}</td>
+                            <td><span class="date-muted">{{ optional($reparacion->fecha_salida)->format('d/m/Y') }}</span></td>
                             <td>
-                                @if($row->orden && $row->orden->cliente)
-                                    <span class="badge-cli">{{ $row->orden->cliente->nombre }}</span>
-                                @else
-                                    <span style="color:#9ca3af;">—</span>
-                                @endif
+                                <span class="total-badge">${{ number_format($reparacion->total ?? 0, 0, ',', '.') }}</span>
                             </td>
-                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                                title="{{ $row->descripcion ?? '' }}">
-                                {{ $row->descripcion ?? '—' }}
-                            </td>
-                            <td>
-                                @if($row->tecnico)
-                                    <span class="badge-tec"><i class="bi bi-person-gear me-1"></i>{{ $row->tecnico->nombre }}</span>
-                                @else
-                                    <span style="color:#9ca3af;">Sin asignar</span>
-                                @endif
-                            </td>
-                            <td style="white-space:nowrap;">
-                                {{ $row->orden && $row->orden->fecha_entrada
-                                    ? \Carbon\Carbon::parse($row->orden->fecha_entrada)->format('d/m/Y')
-                                    : '—' }}
-                            </td>
-                            <td class="text-end">${{ number_format($row->mano_obra ?? 0, 0, ',', '.') }}</td>
-                            <td class="text-end val-positivo">${{ number_format($row->total ?? 0, 0, ',', '.') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="4">
                                 <div class="empty-state">
-                                    <i class="bi bi-inbox"></i>
-                                    No hay reparaciones con fecha de entrada en {{ $mesNombre }} {{ $anio }}.
-                                </div>
+                                    <i class="bi bi-inbox"></i>No se encontraron reparaciones en este período.</div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
-                @if($countR > 0)
-                <tfoot>
-                    <tr>
-                        <td colspan="6" class="text-end">TOTAL DEL PERÍODO</td>
-                        <td class="text-end">${{ number_format($totalMO, 0, ',', '.') }}</td>
-                        <td class="text-end val-positivo">${{ number_format($totalR, 0, ',', '.') }}</td>
-                    </tr>
-                </tfoot>
-                @endif
             </table>
         </div>
-        <div class="no-print d-flex align-items-center justify-content-between px-3 py-2 border-top"
-             id="pag-ctrl-rep" style="background:#f8fafc;display:none!important;">
+        <div class="no-print d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pag-ctrl-rep" style="background:#f8fafc;display:none!important;">
+            <span id="pag-info-rep" style="font-size:0.82rem;color:#6c757d;"></span>
             <span id="pag-texto-rep" style="font-size:0.82rem;color:#6c757d;"></span>
             <nav><ul class="pagination pagination-sm mb-0">
                 <li class="page-item" id="pag-prev-rep"><a class="page-link" href="#">‹ Anterior</a></li>
@@ -194,7 +155,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initPag('tbody-rep','pag-ctrl-rep','pag-prev-rep','pag-next-rep','pag-num-rep','pag-texto-rep','pag-info-rep',25);
+    initPag('tbody-rep','pag-ctrl-rep','pag-prev-rep','pag-next-rep','pag-num-rep','pag-texto-rep','pag-info-rep',10);
 });
 function initPag(tbodyId,ctrlId,prevId,nextId,numId,textoId,infoId,pageSize){
     const tbody=document.getElementById(tbodyId);

@@ -50,25 +50,9 @@
 <div>
 
     @php
-        use App\Models\Producto;
-        use App\Models\MovimientoInventario;
-
         $mesesEs = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',
                     7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
         $mesNombre = $mesesEs[(int)$mes] ?? '';
-
-        $productos = Producto::where('activo', 1)->orderBy('nombre')->get();
-        $totalCompra = $productos->sum(fn($p) => $p->precio_compra * $p->stock);
-        $totalVenta  = $productos->sum(fn($p) => $p->precio_venta  * $p->stock);
-        $margenPot   = $totalVenta - $totalCompra;
-        $criticos    = $productos->where('stock', 0)->count();
-        $bajos       = $productos->whereBetween('stock', [1, 2])->count();
-
-        $movimientos = MovimientoInventario::with('producto')
-            ->whereYear('created_at', $anio ?? date('Y'))
-            ->whereMonth('created_at', $mes ?? date('m'))
-            ->orderByDesc('created_at')
-            ->get();
     @endphp
 
     <div class="rpt-header">
@@ -210,7 +194,7 @@
                             <td class="text-center" style="font-weight:700;">{{ $mov->cantidad }}</td>
                             <td style="font-size:0.82rem;color:#6c757d;">{{ $mov->referencia ?? '—' }}</td>
                             <td style="font-size:0.82rem;white-space:nowrap;">
-                                {{ \Carbon\Carbon::parse($mov->created_at)->format('d/m/Y H:i') }}
+                                {{ optional($mov->created_at)->format('d/m/Y H:i') }}
                             </td>
                         </tr>
                     @empty
@@ -235,8 +219,8 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initPag('tbody-prod','pag-ctrl-prod','pag-prev-prod','pag-next-prod','pag-num-prod','pag-texto-prod','pag-info-prod',20);
-    initPag('tbody-mov','pag-ctrl-mov','pag-prev-mov','pag-next-mov','pag-num-mov','pag-texto-mov','pag-info-mov',20);
+    initPag('tbody-prod','pag-ctrl-prod','pag-prev-prod','pag-next-prod','pag-num-prod','pag-texto-prod','pag-info-prod',10);
+    initPag('tbody-mov','pag-ctrl-mov','pag-prev-mov','pag-next-mov','pag-num-mov','pag-texto-mov','pag-info-mov',10);
 });
 function initPag(tbodyId,ctrlId,prevId,nextId,numId,textoId,infoId,pageSize){
     const tbody=document.getElementById(tbodyId);

@@ -33,4 +33,9 @@ class Venta extends Model
     {
         return $this->hasMany(VentaDetalle::class, 'venta_id');
     }
+
+    public function cliente()
+    {
+        return $this->belongsTo(Cliente::class);
+    }
 }

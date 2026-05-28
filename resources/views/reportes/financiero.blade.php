@@ -73,17 +73,23 @@
 
     <div class="fin-grid">
         <div class="fin-box ventas">
-            <div class="fin-box-ico" style="color:#2563eb"><i class="bi bi-bag-fill"></i></div>
+            <div class="fin-box-ico">
+                <i class="bi bi-cash-stack"></i>
+            </div>
             <div class="fin-box-lbl">Ingresos por Ventas</div>
-            <div class="fin-box-val">${{ number_format($v, 0, ',', '.') }}</div>
-            <div class="fin-box-sub">{{ $pctV }}% del total &nbsp;·&nbsp; {{ ($ventas ?? collect())->count() }} facturas</div>
+            <div class="fin-box-val">${{ number_format($ingresosVentas ?? 0, 2) }}</div>
+            <div class="fin-box-sub">Basado en fecha de venta</div>
         </div>
+
         <div class="fin-box reparac">
-            <div class="fin-box-ico" style="color:#16a34a"><i class="bi bi-tools"></i></div>
+            <div class="fin-box-ico">
+                <i class="bi bi-tools"></i>
+            </div>
             <div class="fin-box-lbl">Ingresos por Reparaciones</div>
-            <div class="fin-box-val">${{ number_format($r, 0, ',', '.') }}</div>
-            <div class="fin-box-sub">{{ $pctR }}% del total &nbsp;·&nbsp; {{ ($reparaciones ?? collect())->count() }} órdenes</div>
+            <div class="fin-box-val">${{ number_format($ingresosReparaciones ?? 0, 2) }}</div>
+            <div class="fin-box-sub">Basado en fecha de salida</div>
         </div>
+
         <div class="fin-box total">
             <div class="fin-box-ico" style="color:#dc2626"><i class="bi bi-cash-stack"></i></div>
             <div class="fin-box-lbl">Total General del Período</div>

@@ -25,12 +25,24 @@
 
     .rpt-table { margin:0; }
     .rpt-table thead tr { background:#f1f5f9; }
-    .rpt-table thead th { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#64748b;padding:11px 16px;border:none;border-bottom:1px solid #e2e8f0; }
-    .rpt-table tbody tr { border-bottom:1px solid #f1f5f9; }
-    .rpt-table tbody tr:last-child { border-bottom:none; }
-    .rpt-table tbody tr:hover { background:#fafbfc; }
-    .rpt-table td { padding:11px 16px;font-size:0.87rem;color:#374151;vertical-align:middle;border:none; }
-    .rpt-table tfoot td { background:#f8fafc;font-weight:700;font-size:0.88rem;padding:13px 16px;border-top:2px solid #e2e8f0;color:#1e293b; }
+    .rpt-table thead th { font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:#1f2937;padding:12px 16px;border:none;border-bottom:2px solid #e2e8f0;text-align:center; }
+        .rpt-table tbody tr { border-bottom:1px solid #f1f5f9; }
+        .rpt-table tbody tr:nth-child(even) { background:#f8fafc; }
+        .rpt-table tbody tr:last-child { border-bottom:none; }
+        .rpt-table tbody tr:hover { background:#e7f1ff; }
+        .rpt-table td { padding:12px 16px;font-size:0.9rem;color:#374151;vertical-align:middle;border:none;text-align:center; }
+        .rpt-table tfoot td { background:#f8fafc;font-weight:700;font-size:0.88rem;padding:13px 16px;border-top:2px solid #e2e8f0;color:#1e293b; }
+
+        /* Decorative badges */
+        .badge-num { display:inline-block;background:linear-gradient(180deg,#eef8ff,#dbeffd);color:#1e3a8a;border-radius:8px;padding:4px 10px;font-size:0.78rem;font-weight:800;font-family:monospace;border:1px solid #cfe6ff; }
+        .badge-cli { display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:4px 10px;font-size:0.8rem;font-weight:700; }
+        .date-muted { color:#6c757d;font-size:0.86rem; }
+        .total-badge { display:inline-block;padding:6px 10px;border-radius:8px;background:linear-gradient(90deg,#ecfff2,#e6fff8);color:#065f46;font-weight:800;border:1px solid #c6f6e5; }
+        .total-badge.negative { background:linear-gradient(90deg,#fff1f2,#fff6f6);color:#7f1d1d;border:1px solid #ffd6d6; }
+
+        .val-positivo { font-weight:700;color:#16a34a; }
+        .empty-state { text-align:center;padding:50px 20px;color:#9ca3af; }
+        .empty-state i { font-size:2.5rem;display:block;margin-bottom:10px;opacity:0.4; }
     .badge-num { display:inline-block;background:#eff6ff;color:#2563eb;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;font-family:monospace; }
     .val-positivo { font-weight:700;color:#16a34a; }
     .empty-state { text-align:center;padding:50px 20px;color:#9ca3af; }
@@ -88,50 +100,47 @@
 
     <div class="rpt-card">
         <div class="rpt-card-head">
-            <span><i class="bi bi-table me-2"></i>Detalle de Ventas — {{ $mesNombre }} {{ $anio }}</span>
-            <span class="no-print" id="pag-info-ventas" style="font-size:0.8rem;color:#6c757d;"></span>
+            <span>Ventas por Fecha</span>
+            <small>Filtradas por rango de fechas</small>
         </div>
         <div class="table-responsive">
             <table class="table rpt-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th># Factura</th>
+                        <th>Factura</th>
+                        <th>Cliente</th>
                         <th>Fecha</th>
-                        <th class="text-end">Total Final</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-ventas">
-                    @forelse($listaVentas as $i => $row)
+                    @forelse($ventas as $venta)
                         <tr>
-                            <td style="color:#9ca3af;font-size:0.78rem;">{{ $i + 1 }}</td>
-                            <td><span class="badge-num">{{ $row->numero_factura }}</span></td>
-                            <td>{{ \Carbon\Carbon::parse($row->fecha)->format('d/m/Y') }}</td>
-                            <td class="text-end val-positivo">${{ number_format($row->total_final, 0, ',', '.') }}</td>
+                            <td>
+                                <span class="badge-num">{{ $venta->numero_factura }}</span>
+                            </td>
+                            <td>{{ $venta->cliente->nombre ?? 'Sin cliente' }}</td>
+                            <td>
+                                <span class="date-muted">{{ optional($venta->fecha)->format('d/m/Y') }}</span>
+                            </td>
+                            <td>
+                                @php $vt = $venta->total_final ?? $venta->total; @endphp
+                                <span class="total-badge {{ ($vt ?? 0) < 0 ? 'negative' : '' }}">${{ number_format($vt ?? 0, 0, ',', '.') }}</span>
+                            </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="4">
                                 <div class="empty-state">
-                                    <i class="bi bi-inbox"></i>
-                                    No hay ventas registradas en este período.
-                                </div>
+                                    <i class="bi bi-inbox"></i>No se encontraron ventas en este período.</div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
-                @if($countV > 0)
-                <tfoot>
-                    <tr>
-                        <td colspan="3" class="text-end">TOTAL DEL PERÍODO</td>
-                        <td class="text-end" style="color:#16a34a;">${{ number_format($totalV, 0, ',', '.') }}</td>
-                    </tr>
-                </tfoot>
-                @endif
             </table>
         </div>
-        {{-- Paginación --}}
         <div class="no-print d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pag-ctrl-ventas" style="background:#f8fafc;display:none!important;">
+            <span id="pag-info-ventas" style="font-size:0.82rem;color:#6c757d;"></span>
             <span id="pag-texto-ventas" style="font-size:0.82rem;color:#6c757d;"></span>
             <nav><ul class="pagination pagination-sm mb-0">
                 <li class="page-item" id="pag-prev-ventas"><a class="page-link" href="#">‹ Anterior</a></li>
@@ -147,7 +156,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    initTablePagination('tbody-ventas', 'pag-ctrl-ventas', 'pag-prev-ventas', 'pag-next-ventas', 'pag-num-ventas', 'pag-texto-ventas', 'pag-info-ventas', 20);
+    initTablePagination('tbody-ventas', 'pag-ctrl-ventas', 'pag-prev-ventas', 'pag-next-ventas', 'pag-num-ventas', 'pag-texto-ventas', 'pag-info-ventas', 10);
 });
 
 function initTablePagination(tbodyId, ctrlId, prevId, nextId, numId, textoId, infoId, pageSize) {

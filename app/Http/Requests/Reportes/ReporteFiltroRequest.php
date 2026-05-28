@@ -23,4 +23,20 @@ class ReporteFiltroRequest extends FormRequest
             'tipo' => 'nullable|in:venta,reparacion'
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
+            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida.',
+            'fecha_fin.required' => 'La fecha fin es obligatoria.',
+            'fecha_fin.date' => 'La fecha fin debe ser una fecha válida.',
+            'fecha_fin.after_or_equal' => 'La fecha fin debe ser igual o posterior a la fecha de inicio.',
+            'cliente_id.exists' => 'El cliente seleccionado no es válido.',
+            'producto_id.exists' => 'El producto seleccionado no es válido.',
+            'tecnico_id.exists' => 'El técnico seleccionado no es válido.',
+            'tipo.in' => 'El tipo seleccionado no es válido.',
+        ];
+    }
 }
+

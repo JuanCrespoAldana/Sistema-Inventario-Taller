@@ -15,13 +15,6 @@
                 </a>
             </div>
 
-            @if(session('success'))
-                <div class="alert alert-success fade-in">
-                    <i class="bi bi-check-circle-fill me-2"></i>
-                    {{ session('success') }}
-                </div>
-            @endif
-
             {{-- FILTROS --}}
             <form method="GET" action="{{ route('ventas.index') }}" class="row g-2 align-items-end mb-4 mt-3">
                 <div class="col-md-4">
@@ -30,11 +23,11 @@
                            class="form-control" placeholder="FAC-123">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold" style="font-size:0.8rem;">Desde</label>
+                    <label class="form-label fw-semibold" style="font-size:0.8rem;">Desde (Fecha de Salida)</label>
                     <input type="date" name="desde" value="{{ request('desde') }}" class="form-control">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold" style="font-size:0.8rem;">Hasta</label>
+                    <label class="form-label fw-semibold" style="font-size:0.8rem;">Hasta (Fecha de Salida)</label>
                     <input type="date" name="hasta" value="{{ request('hasta') }}" class="form-control">
                 </div>
                 <div class="col-md-2 d-flex gap-2">

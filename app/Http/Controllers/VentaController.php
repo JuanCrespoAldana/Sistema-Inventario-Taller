@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Venta;
-use App\Models\Producto;
 use App\Http\Requests\Ventas\VentaStoreRequest;
 use App\Services\Ventas\VentaService;
 use Illuminate\Http\Request;
@@ -43,8 +42,7 @@ class VentaController extends Controller
 
     public function create()
     {
-        $productos = Producto::where('activo', 1)->get();
-        return view('ventas.create', compact('productos'));
+        return view('ventas.create');
     }
 
     public function store(VentaStoreRequest $request)
