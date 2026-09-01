@@ -6,9 +6,7 @@ use App\Models\Venta;
 use App\Models\VentaDetalle;
 use App\Models\Producto;
 use App\Services\Inventario\InventarioService;
-use App\Events\VentaRegistrada;
 use Illuminate\Support\Facades\DB;
-use Exception;
 
 class VentaService
 {
@@ -27,11 +25,15 @@ class VentaService
 
             $subtotalCalculado = 0;
             $descuentoCalculado = 0;
+            $productosConsultados = [];
 
             // 1️⃣ VALIDAR + CALCULAR TOTALES
+            // Se guarda cada producto ya consultado (con el lock ya tomado)
+            // para reutilizarlo en el paso 4 sin volver a consultarlo.
             foreach ($data['productos'] as $item) {
 
                 $producto = Producto::lockForUpdate()->findOrFail($item['producto_id']);
+                $productosConsultados[$item['producto_id']] = $producto;
 
                 $cantidad = (int) $item['cantidad'];
                 $precioUnitario = (float) $producto->precio_venta;
@@ -72,7 +74,7 @@ class VentaService
             // 4️⃣ DETALLES + INVENTARIO
             foreach ($data['productos'] as $item) {
 
-                $producto = Producto::lockForUpdate()->findOrFail($item['producto_id']);
+                $producto = $productosConsultados[$item['producto_id']];
 
                 $cantidad = (int) $item['cantidad'];
                 $precioUnitario = (float) $producto->precio_venta;
@@ -99,9 +101,6 @@ class VentaService
                         null
                     );
             }
-
-            // 🎯 DISPARAR EVENTO PARA ACTUALIZAR MÉTRICAS
-            event(new VentaRegistrada($venta));
 
             return $venta;
         });

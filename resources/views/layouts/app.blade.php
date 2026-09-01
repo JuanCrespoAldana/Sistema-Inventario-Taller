@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>@yield('title', 'Sistema Taller')</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     {{-- Bootstrap --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -154,33 +155,30 @@
                     <h1 class="page-title mb-4">@yield('page-title')</h1>
                 @endif
 
+                {{--
+                    Mensajes de sesión (success/error/warning): se muestran con el
+                    mismo sistema de alertas flotantes que usa el resto de la app
+                    (showAppAlert), para que absolutamente todo mensaje se vea
+                    igual sin importar si viene de una redirección normal o de
+                    una petición AJAX.
+                --}}
                 @if(session('success') || session('error') || session('warning'))
-                    <div class="mb-4">
-                        @if(session('success'))
-                            <div class="alert alert-success alert-dismissible fade show auto-dismiss-alert app-flash-alert" role="alert">
-                                <i class="bi bi-check-circle app-alert-icon me-2"></i>
-                                <div class="app-alert-message">{{ session('success') }}</div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                            </div>
-                        @endif
-                        @if(session('error'))
-                            <div class="alert alert-danger alert-dismissible fade show auto-dismiss-alert app-flash-alert" role="alert">
-                                <i class="bi bi-exclamation-triangle app-alert-icon me-2"></i>
-                                <div class="app-alert-message">{{ session('error') }}</div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                            </div>
-                        @endif
-                        @if(session('warning'))
-                            <div class="alert alert-warning alert-dismissible fade show auto-dismiss-alert app-flash-alert" role="alert">
-                                <i class="bi bi-exclamation-circle app-alert-icon me-2"></i>
-                                <div class="app-alert-message">{{ session('warning') }}</div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                            </div>
-                        @endif
-                    </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            @if(session('success'))
+                                showAppAlert(@json(session('success')), 'success');
+                            @endif
+                            @if(session('error'))
+                                showAppAlert(@json(session('error')), 'danger');
+                            @endif
+                            @if(session('warning'))
+                                showAppAlert(@json(session('warning')), 'warning');
+                            @endif
+                        });
+                    </script>
                 @endif
 
-                {{-- Contenedor para alertas mostradas por JS --}}
+                {{-- Contenedor para todas las alertas (sesión y JS) --}}
                 <div id="app-alert-container"></div>
 
                 @yield('content')
@@ -234,20 +232,6 @@
             font-size: 0.95rem;
         }
 
-        .app-flash-alert {
-            border-radius: 1rem;
-            padding: 1rem 1.05rem;
-            box-shadow: 0 0.85rem 1.7rem rgba(0, 0, 0, 0.10);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .app-flash-alert .btn-close {
-            margin-left: auto;
-        }
-
         #app-alert-container .btn-close {
             margin-left: 0.5rem;
         }
@@ -267,13 +251,6 @@
                     this.closest('.menu-group').classList.remove('open');
                 });
 
-            });
-
-            document.querySelectorAll('.auto-dismiss-alert').forEach(function (alert) {
-                setTimeout(function () {
-                    var bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
-                    bsAlert.close();
-                }, 5000);
             });
 
         });

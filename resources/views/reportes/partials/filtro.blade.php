@@ -44,6 +44,16 @@ $mesesEs = [
     5=>'Mayo', 6=>'Junio', 7=>'Julio', 8=>'Agosto',
     9=>'Septiembre', 10=>'Octubre', 11=>'Noviembre', 12=>'Diciembre'
 ];
+
+// Se deriva de la ruta actual para no tener que tocar cada vista de reporte.
+$tipoReporte = match(request()->route()?->getName()) {
+    'reportes.ventas' => 'ventas',
+    'reportes.reparaciones' => 'reparaciones',
+    'reportes.inventario' => 'inventario',
+    'reportes.tecnicos' => 'tecnicos',
+    'reportes.financiero' => 'financiero',
+    default => null,
+};
 @endphp
 
 <form method="GET" class="filtro-bar">
@@ -70,13 +80,16 @@ $mesesEs = [
         </button>
     </div>
     <div class="filtro-divider"></div>
-    <div>
-        <label style="display:block; visibility:hidden">x</label>
-        <button type="button" onclick="exportReportTablesToExcel()" class="btn btn-outline-secondary no-print"
-            style="border-radius:8px; padding:8px 14px; font-size:0.87rem;">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
-        </button>
-    </div>
+    @if($tipoReporte)
+        <div>
+            <label style="display:block; visibility:hidden">x</label>
+            <a href="{{ route('reportes.exportar', ['tipo' => $tipoReporte, 'mes' => $mes ?? date('m'), 'anio' => $anio ?? date('Y')]) }}"
+                class="btn btn-outline-secondary no-print"
+                style="border-radius:8px; padding:8px 14px; font-size:0.87rem;">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+            </a>
+        </div>
+    @endif
     <div class="ms-auto">
         <label style="display:block; visibility:hidden">x</label>
         <a href="{{ route('reportes.index') }}" class="btn btn-outline-secondary no-print"
@@ -86,46 +99,4 @@ $mesesEs = [
     </div>
 </form>
 
-@push('scripts')
-<script>
-function cleanTableForExport(table){
-    const clone = table.cloneNode(true);
-    // remove elements marked as no-print
-    clone.querySelectorAll('.no-print').forEach(n=>n.remove());
-    // remove pagination controls inside table wrapper
-    clone.querySelectorAll('tfoot .no-print, .pagination, .btn, .empty-state').forEach(n=>n.remove());
-    // remove hidden columns (by class)
-    clone.querySelectorAll('.d-none').forEach(n=>n.classList.remove('d-none'));
-    return clone.outerHTML;
-}
 
-function exportReportTablesToExcel(){
-    const cards = Array.from(document.querySelectorAll('.rpt-card'));
-    if(cards.length===0){ showAppAlert('No se encontraron tablas para exportar.', 'warning'); return; }
-    let html = '<html><head><meta charset="utf-8"/></head><body>';
-    cards.forEach(card=>{
-        const titleEl = card.querySelector('.rpt-card-head span');
-        const title = titleEl ? titleEl.textContent.trim() : '';
-        const table = card.querySelector('table');
-        if(!table) return;
-        html += '<h2 style="font-family:Arial;color:#1e293b;">'+(title||'')+'</h2>';
-        html += cleanTableForExport(table);
-        html += '<br/>';
-    });
-    html += '</body></html>';
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const nombre = (document.title || 'reportes').replace(/[^a-z0-9]/gi,'_') + '.xls';
-    if(window.navigator && window.navigator.msSaveOrOpenBlob){
-        window.navigator.msSaveOrOpenBlob(blob, nombre);
-    } else {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = nombre;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(()=>{ URL.revokeObjectURL(link.href); link.remove(); }, 1500);
-    }
-}
-</script>
-@endpush

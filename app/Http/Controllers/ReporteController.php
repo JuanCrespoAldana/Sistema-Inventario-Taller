@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Venta;
-use App\Models\OrdenMaquina;
 use App\Services\Reportes\ReporteService;
+use App\Services\Reportes\ReporteExportService;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReporteController extends Controller
 {
@@ -78,10 +78,31 @@ class ReporteController extends Controller
         return view('reportes.anual', array_merge($data, compact('anio')));
     }
 
-    public function anual(Request $request)
+    public function exportar(string $tipo, Request $request, ReporteExportService $exportService)
     {
-        $anio = $request->anio ?? date('Y');
-        $data = $this->service->generarResumenAnual($anio);
-        return view('reportes.anual', array_merge($data, compact('anio')));
+        $tiposValidos = ['ventas', 'reparaciones', 'tecnicos', 'financiero', 'inventario', 'anual'];
+
+        if (!in_array($tipo, $tiposValidos)) {
+            abort(404);
+        }
+
+        $mes  = (int) ($request->mes  ?? date('m'));
+        $anio = (int) ($request->anio ?? date('Y'));
+
+        try {
+            [$spreadsheet, $nombreArchivo] = $exportService->exportar($tipo, $mes, $anio);
+
+            $writer = new Xlsx($spreadsheet);
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, $nombreArchivo, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'No fue posible generar el archivo de exportación. Intenta nuevamente.');
+        }
     }
 }

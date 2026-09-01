@@ -295,7 +295,7 @@
                                                                                             <input type="text"
                                                                                                     class="form-control money"
                                                                                                     data-name="mano_obra"
-                                                                                                    placeholder="$ 0">
+                                                                                                    placeholder="0">
                                                                                         </div>
 
                                                                                         <div class="col-md-6 mb-2">
@@ -303,7 +303,7 @@
                                                                                             <input type="text"
                                                                                                 class="form-control money"
                                                                                                 data-name="total"
-                                                                                                placeholder="$ 0">
+                                                                                                placeholder="0">
                                                                                         </div>
                                                                                     </div>
 

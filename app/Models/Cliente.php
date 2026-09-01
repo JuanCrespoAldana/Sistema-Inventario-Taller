@@ -14,9 +14,4 @@ class Cliente extends Model
         'nombre',
         'telefono',
     ];
-
-    public function ordenesReparacion()
-    {
-        return $this->hasMany(OrdenReparacion::class, 'cliente_id');
-    }
 }

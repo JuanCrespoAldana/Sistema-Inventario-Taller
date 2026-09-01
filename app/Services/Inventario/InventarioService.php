@@ -5,7 +5,6 @@ namespace App\Services\Inventario;
 use App\Models\MovimientoInventario;
 use App\Models\Producto;
 use Illuminate\Support\Facades\DB;
-use Exception;
 
 class InventarioService
 {
@@ -66,7 +65,7 @@ class InventarioService
         if ($tipo === 'salida') {
 
             if ($producto->stock < $cantidad) {
-                throw new Exception("Stock insuficiente para {$producto->nombre}");
+                throw new \RuntimeException("Stock insuficiente para {$producto->nombre}");
             }
 
             $producto->decrement('stock', $cantidad);
@@ -80,7 +79,7 @@ class InventarioService
             $nuevoStock = $producto->stock + $cantidad;
 
             if ($nuevoStock < 0) {
-                throw new Exception("El ajuste dejaría stock negativo para {$producto->nombre}");
+                throw new \RuntimeException("El ajuste dejaría stock negativo para {$producto->nombre}");
             }
 
             $producto->update(['stock' => $nuevoStock]);

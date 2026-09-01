@@ -15,9 +15,4 @@ class Tecnico extends Model
 
     // Laravel usará created_at pero no updated_at
     const UPDATED_AT = null;
-
-    public function maquinasReparadas()
-    {
-        return $this->hasMany(OrdenMaquina::class, 'tecnico_id');
-    }
 }

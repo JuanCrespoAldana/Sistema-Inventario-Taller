@@ -234,7 +234,7 @@
                     <div class="mb-3">
                         <label class="form-label">Precio Compra</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+
                             <input type="text" name="precio_compra" id="edit_precio_compra"
                                 class="form-control money-input" required>
                         </div>
@@ -242,7 +242,7 @@
                     <div class="mb-3">
                         <label class="form-label">Precio Venta</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+
                             <input type="text" name="precio_venta" id="edit_precio_venta"
                                 class="form-control money-input" required>
                         </div>

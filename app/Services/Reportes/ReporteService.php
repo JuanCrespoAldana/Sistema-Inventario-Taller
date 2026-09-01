@@ -5,7 +5,6 @@ namespace App\Services\Reportes;
 use Carbon\Carbon;
 use App\Models\Venta;
 use App\Models\OrdenMaquina;
-use App\Models\Tecnico;
 use App\Models\Producto;
 use App\Models\MovimientoInventario;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +51,10 @@ class ReporteService
             ->whereNotNull('tecnico_id')
             ->groupBy('tecnico_id')
             ->each(function ($items, $tecnicoId) use (&$productividad) {
-                $tecnico = Tecnico::find($tecnicoId);
+                // El técnico ya viene precargado en cada máquina (with('tecnico') arriba),
+                // así que lo tomamos de ahí en vez de volver a consultar la BD por cada
+                // grupo (antes: Tecnico::find($tecnicoId) dentro del loop = N+1 queries).
+                $tecnico = $items->first()->tecnico;
                 if ($tecnico) {
                     $productividad[$tecnico->nombre] = [
                         'total'     => $items->sum('total'),

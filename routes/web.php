@@ -7,8 +7,6 @@ use App\Http\Controllers\ReparacionController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\TecnicoController;
 use App\Http\Controllers\ReporteController;
-use App\Http\Controllers\UsuarioController;
-use App\Http\Controllers\ParametroController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,6 +147,9 @@ Route::prefix('tecnicos')->name('tecnicos.')->group(function () {
     Route::patch('/{id}/toggle', [TecnicoController::class, 'toggle'])
         ->name('toggle');
 
+    Route::put('/{tecnico}', [TecnicoController::class, 'update'])
+        ->name('update');
+
 });
 
 
@@ -177,10 +178,10 @@ Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::get('/financiero', [ReporteController::class, 'financiero'])
         ->name('financiero');
 
-    Route::get('/anual', [ReporteController::class, 'anual'])
-        ->name('anual');
-
     Route::get('/resumen', [ReporteController::class, 'resumen'])
         ->name('resumen');
+
+    Route::get('/exportar/{tipo}', [ReporteController::class, 'exportar'])
+        ->name('exportar');
 
 });

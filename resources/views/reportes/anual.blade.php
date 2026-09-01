@@ -89,6 +89,12 @@
                 <i class="bi bi-printer"></i> Imprimir
             </button>
         </div>
+        <div style="align-self:flex-end;">
+            <a href="{{ route('reportes.exportar', ['tipo' => 'anual', 'anio' => $anio]) }}"
+               class="btn btn-outline-secondary no-print" style="border-radius:8px;padding:8px 14px;">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Exportar a Excel
+            </a>
+        </div>
         <div style="align-self:flex-end;margin-left:auto;">
             <a href="{{ route('reportes.index') }}" class="btn btn-outline-secondary"
                style="border-radius:8px;padding:8px 14px;">

@@ -163,7 +163,10 @@
                         document.getElementById('modalOrden')
                     ).show();
                 })
-                .catch(err => console.error(err));
+                .catch(err => {
+                    console.error(err);
+                    mostrarAlertaGlobal('No fue posible cargar la información de la orden. Intenta nuevamente.', 'danger');
+                });
         }
 
         function editarOrden(id) {
@@ -215,7 +218,7 @@
                             }
                         })
                         .catch(() => {
-                            mostrarAlertaGlobal('Error al guardar. Intenta de nuevo.', 'danger');
+                            mostrarAlertaGlobal('No fue posible guardar la información. Intenta nuevamente.', 'danger');
                             if (submitBtn) {
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = 'Guardar cambios';
@@ -223,7 +226,10 @@
                         });
                     });
                 })
-                .catch(err => console.error(err));
+                .catch(err => {
+                    console.error(err);
+                    mostrarAlertaGlobal('No fue posible cargar el formulario de edición. Intenta nuevamente.', 'danger');
+                });
         }
 
         function mostrarAlertaGlobal(mensaje, tipo) {
@@ -238,18 +244,6 @@
             form.action = `{{ route('reparaciones.destroy', ':id') }}`.replace(':id', id);
             form.submit();
         }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const alert = document.getElementById('alert-success');
-
-            if (alert) {
-                setTimeout(() => {
-                    alert.classList.remove('show');
-                    alert.classList.add('fade');
-                    setTimeout(() => alert.remove(), 500);
-                }, 3000);
-            }
-        });
 
         document.addEventListener('click', function (e) {
 

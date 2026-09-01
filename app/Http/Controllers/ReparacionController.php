@@ -28,9 +28,12 @@ class ReparacionController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $clientes = Cliente::orderBy('nombre')->get(); // 👈 FALTABA ESTO
+        // Nota: se quitó aquí una consulta que traía TODOS los clientes
+        // (Cliente::orderBy('nombre')->get()) porque la vista reparaciones.edit
+        // no usa esa variable en ningún punto — era una consulta completa
+        // ejecutada en cada apertura del modal sin ningún uso real.
 
-        return view('reparaciones.edit', compact('orden', 'tecnicos', 'clientes'));
+        return view('reparaciones.edit', compact('orden', 'tecnicos'));
     }
     public function eliminarMaquina($ordenId, $maquinaId)
     {
@@ -99,7 +102,8 @@ class ReparacionController extends Controller
 
         $ordenes = $query
             ->orderByDesc('created_at')
-            ->paginate(20)
+            ->orderByDesc('id')
+            ->paginate(5)
             ->withQueryString();
 
         $tecnicos = Tecnico::where('activo', 1)
@@ -264,6 +268,7 @@ class ReparacionController extends Controller
         }
 
         $idsActuales = [];
+        $maquinasExistentes = $orden->maquinas->keyBy('id');
 
         if ($request->has('maquinas')) {
 
@@ -275,8 +280,8 @@ class ReparacionController extends Controller
 
                 if (isset($m['id'])) {
 
-                    // Actualizar existente
-                    $maquina = OrdenMaquina::find($m['id']);
+                    // Actualizar existente (ya cargada arriba, sin volver a consultar)
+                    $maquina = $maquinasExistentes->get($m['id']);
 
                     if ($maquina) {
 
@@ -306,11 +311,9 @@ class ReparacionController extends Controller
                                 : 0,
                         ];
 
-                        // Si acaba de marcarse como entregada, disparar el evento
                         if ($nuevoEstado === 'entregada' && $maquina->estado !== 'entregada') {
                             $maquina->update($dataUpdate);
                             $maquina->refresh();
-                            event(new \App\Events\ReparacionEntregada($maquina));
                         } else {
                             // Actualizar directamente sin restricciones de flujo
                             $maquina->update($dataUpdate);
@@ -378,14 +381,12 @@ class ReparacionController extends Controller
 
     public function destroy($id)
     {
-        $orden = OrdenReparacion::with('maquinas')->findOrFail($id);
+        $orden = OrdenReparacion::findOrFail($id);
 
-        // Eliminamos primero las máquinas asociadas
-        foreach ($orden->maquinas as $maquina) {
-            $maquina->delete();
-        }
-
-        // Eliminamos la orden
+        // No hace falta borrar las máquinas manualmente: la relación
+        // orden_id -> ordenes_reparacion tiene cascadeOnDelete() en la
+        // migración, así que la base de datos las borra automáticamente
+        // al borrar la orden.
         $orden->delete();
 
         return redirect()

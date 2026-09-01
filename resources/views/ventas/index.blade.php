@@ -20,7 +20,7 @@
                 <div class="col-md-4">
                     <label class="form-label fw-semibold" style="font-size:0.8rem;">N° Factura</label>
                     <input type="text" name="factura" value="{{ request('factura') }}"
-                           class="form-control" placeholder="FAC-123">
+                           class="form-control" placeholder="Buscar por N° Factura">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold" style="font-size:0.8rem;">Desde (Fecha de Salida)</label>

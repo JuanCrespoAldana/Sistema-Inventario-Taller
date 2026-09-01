@@ -33,17 +33,24 @@ class InventarioController extends Controller
         }
 
         $productos = $query->orderByDesc('created_at')
-            ->paginate(12)
+            ->paginate(8)
             ->withQueryString();
 
-        // Mini KPIs (sin afectar el filtro)
-        $productosAll = Producto::where('activo', 1)->get();
+        // Mini KPIs (sin afectar el filtro): una sola consulta con agregación
+        // SQL en vez de traer todos los productos a PHP para sumarlos ahí.
+        $stats = Producto::where('activo', 1)
+            ->selectRaw('
+                COALESCE(SUM(stock * precio_compra), 0) as valor_compra,
+                COALESCE(SUM(stock * precio_venta), 0) as valor_venta,
+                COUNT(CASE WHEN stock = 0 THEN 1 END) as criticos,
+                COUNT(CASE WHEN stock BETWEEN 1 AND 2 THEN 1 END) as bajos
+            ')
+            ->first();
 
-        $valorCompra = $productosAll->sum(fn($p) => $p->stock * $p->precio_compra);
-        $valorVenta = $productosAll->sum(fn($p) => $p->stock * $p->precio_venta);
-
-        $productosCriticos = $productosAll->where('stock', 0)->count();
-        $productosBajos = $productosAll->whereBetween('stock', [1, 2])->count();
+        $valorCompra = $stats->valor_compra;
+        $valorVenta = $stats->valor_venta;
+        $productosCriticos = $stats->criticos;
+        $productosBajos = $stats->bajos;
 
         return view('inventario.index', compact(
             'productos',
@@ -143,10 +150,19 @@ class InventarioController extends Controller
                 ->back()
                 ->with('success', 'Ajuste realizado correctamente.');
 
-        } catch (\Exception $e) {
+        } catch (\RuntimeException $e) {
+            // Mensajes de negocio ya redactados de forma segura por InventarioService
+            // (ej. "Stock insuficiente para X"), sí se le pueden mostrar al usuario.
             return redirect()
                 ->back()
                 ->with('error', $e->getMessage());
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->back()
+                ->with('error', 'No fue posible realizar el ajuste. Intenta nuevamente.');
         }
     }
 

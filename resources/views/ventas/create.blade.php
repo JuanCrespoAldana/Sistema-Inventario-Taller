@@ -19,13 +19,6 @@
                 </div>
             @endif
 
-            @if (session('venta_error'))
-                <div class="alert alert-danger venta-alert animate-in" id="venta-alert">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    {{ session('venta_error') }}
-                </div>
-            @endif
-
             <form method="POST" action="{{ route('ventas.store') }}">
                 @csrf
 
@@ -334,15 +327,6 @@
 
         function valorNumerico(input) {
             return parseInt(input.value.replace(/\./g, '')) || 0;
-        }
-
-        const alerta = document.getElementById('venta-alert');
-        if (alerta) {
-            setTimeout(() => {
-                alerta.style.opacity = '0';
-                alerta.style.transform = 'translateY(-5px)';
-                setTimeout(() => alerta.remove(), 400);
-            }, 4500);
         }
     </script>
 @endsection

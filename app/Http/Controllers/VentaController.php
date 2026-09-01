@@ -61,7 +61,7 @@ class VentaController extends Controller
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('venta_error', $e->getMessage());
+                ->with('error', $e->getMessage());
         }
     }
 
