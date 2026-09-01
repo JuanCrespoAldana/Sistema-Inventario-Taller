@@ -1,59 +1,374 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🔧 Sistema de Gestión para Taller
 
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <strong>Sistema web integral para la gestión de operaciones, inventario, ventas y reparaciones de un taller.</strong>
 </p>
 
-## About Laravel
+<p align="center">
+  <img src="https://img.shields.io/badge/Laravel-12-FF2D20?style=for-the-badge&logo=laravel&logoColor=white">
+  <img src="https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white">
+  <img src="https://img.shields.io/badge/MySQL%2FMariaDB-Database-4479A1?style=for-the-badge&logo=mysql&logoColor=white">
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white">
+</p>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📌 Sobre el proyecto
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**Sistema de Gestión para Taller** es una aplicación web desarrollada para centralizar y optimizar los procesos administrativos y operativos de un taller.
 
-## Learning Laravel
+El sistema permite gestionar desde un mismo lugar las **ventas, reparaciones, inventario, técnicos y reportes**, proporcionando una visión general de la operación mediante un dashboard.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+El proyecto fue desarrollado aplicando una arquitectura organizada basada en **Laravel**, utilizando controladores, modelos, servicios, solicitudes de validación, migraciones y vistas Blade.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 🎯 Objetivo
 
-## Laravel Sponsors
+Digitalizar y facilitar la gestión de un taller, reduciendo procesos manuales y permitiendo tener la información organizada y disponible en tiempo real.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## ✨ Funcionalidades principales
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 📊 Dashboard
 
-## Contributing
+* Resumen general de la operación.
+* Indicadores de ventas.
+* Información de inventario.
+* Seguimiento de reparaciones.
+* Métricas para facilitar la toma de decisiones.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 💰 Gestión de ventas
 
-## Code of Conduct
+* Registro de ventas.
+* Detalle de productos vendidos.
+* Control de descuentos.
+* Consulta de ventas.
+* Visualización del detalle de cada venta.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 🔧 Gestión de reparaciones
 
-## Security Vulnerabilities
+* Registro de órdenes de reparación.
+* Gestión de máquinas asociadas a cada orden.
+* Actualización del estado de las reparaciones.
+* Consulta detallada de órdenes.
+* Edición y eliminación de órdenes.
+* Asociación de técnicos y trabajos realizados.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 📦 Gestión de inventario
 
-## License
+* Administración de productos.
+* Registro de movimientos de inventario.
+* Ajustes de existencias.
+* Búsqueda de productos.
+* Control de entradas y salidas.
+* Actualización y eliminación de productos.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 👨‍🔧 Gestión de técnicos
+
+* Registro de técnicos.
+* Actualización de información.
+* Activación y desactivación de técnicos.
+* Gestión centralizada del personal técnico.
+
+### 📈 Reportes
+
+El sistema cuenta con diferentes módulos de consulta y análisis:
+
+* Reportes de ventas.
+* Reportes de reparaciones.
+* Reportes de inventario.
+* Reportes de técnicos.
+* Reportes financieros.
+* Resúmenes generales.
+* Exportación de información.
+
+---
+
+## 🛠️ Tecnologías utilizadas
+
+| Tecnología          | Uso                                    |
+| ------------------- | -------------------------------------- |
+| **PHP 8.2+**        | Lenguaje principal                     |
+| **Laravel 12**      | Framework backend                      |
+| **Blade**           | Motor de plantillas                    |
+| **MySQL / MariaDB** | Base de datos                          |
+| **Vite**            | Compilación y desarrollo frontend      |
+| **JavaScript**      | Interactividad                         |
+| **CSS**             | Diseño y estilos                       |
+| **PhpSpreadsheet**  | Exportación y manejo de archivos Excel |
+| **Git / GitHub**    | Control de versiones                   |
+
+---
+
+## 🏗️ Arquitectura del proyecto
+
+El proyecto utiliza una estructura organizada siguiendo las convenciones de Laravel.
+
+```text
+sistema-taller/
+│
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   └── Requests/
+│   │
+│   ├── Models/
+│   ├── Services/
+│   │
+│   └── Providers/
+│
+├── database/
+│   ├── migrations/
+│   ├── factories/
+│   └── seeders/
+│
+├── resources/
+│   ├── js/
+│   └── views/
+│
+├── routes/
+│   └── web.php
+│
+├── public/
+│   ├── css/
+│   └── img/
+│
+├── tests/
+│
+├── composer.json
+└── package.json
+```
+
+### 💡 Separación por responsabilidades
+
+Uno de los aspectos importantes del proyecto es la separación de responsabilidades.
+
+Los **Controllers** gestionan las peticiones HTTP, mientras que diferentes procesos de negocio se encuentran organizados dentro de **Services**, por ejemplo:
+
+```text
+app/
+├── Services/
+│   ├── Dashboard/
+│   ├── Inventario/
+│   ├── Reportes/
+│   ├── Tecnicos/
+│   └── Ventas/
+```
+
+Esto permite mantener el código más organizado, reutilizable y fácil de mantener.
+
+---
+
+## 🗄️ Modelo de datos
+
+El sistema trabaja con diferentes entidades relacionadas con la operación del taller:
+
+```text
+Clientes
+   │
+   └── Órdenes de reparación
+            │
+            ├── Máquinas
+            └── Técnicos
+
+Productos
+   │
+   └── Movimientos de inventario
+
+Ventas
+   │
+   └── Detalle de venta
+            │
+            └── Productos
+```
+
+La estructura de la base de datos se administra mediante **migraciones de Laravel**, permitiendo crear y modificar el esquema de manera controlada.
+
+---
+
+## 🚀 Instalación
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/TU-USUARIO/TU-REPOSITORIO.git
+```
+
+Entrar al proyecto:
+
+```bash
+cd sistema-taller
+```
+
+### 2. Instalar dependencias de PHP
+
+```bash
+composer install
+```
+
+### 3. Configurar las variables de entorno
+
+Crear el archivo `.env`:
+
+```bash
+cp .env.example .env
+```
+
+En Windows también puedes copiar manualmente `.env.example` y renombrarlo como:
+
+```text
+.env
+```
+
+Después configurar las credenciales de la base de datos.
+
+Ejemplo:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sistema_taller
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### 4. Generar la clave de Laravel
+
+```bash
+php artisan key:generate
+```
+
+### 5. Ejecutar las migraciones
+
+```bash
+php artisan migrate
+```
+
+Si el proyecto utiliza datos iniciales:
+
+```bash
+php artisan db:seed
+```
+
+### 6. Instalar dependencias frontend
+
+```bash
+npm install
+```
+
+### 7. Ejecutar el proyecto
+
+En una terminal:
+
+```bash
+php artisan serve
+```
+
+En otra terminal:
+
+```bash
+npm run dev
+```
+
+Después acceder a:
+
+```text
+http://127.0.0.1:8000
+```
+
+---
+
+## 📂 Módulos del sistema
+
+```text
+📊 Dashboard
+│
+├── 💰 Ventas
+│
+├── 🔧 Reparaciones
+│
+├── 📦 Inventario
+│   ├── Productos
+│   ├── Movimientos
+│   └── Ajustes
+│
+├── 👨‍🔧 Técnicos
+│
+└── 📈 Reportes
+    ├── Ventas
+    ├── Reparaciones
+    ├── Inventario
+    ├── Técnicos
+    ├── Financiero
+    └── Resumen
+```
+
+---
+
+## 🔐 Seguridad y buenas prácticas
+
+El proyecto contempla diferentes prácticas para mantener una estructura segura y organizada:
+
+* Variables sensibles almacenadas mediante `.env`.
+* `.env` excluido del repositorio mediante `.gitignore`.
+* Validación de datos mediante **Form Requests**.
+* Uso de **migraciones** para controlar la estructura de la base de datos.
+* Separación de lógica mediante **Services**.
+* Organización modular de controladores.
+* Manejo de errores mediante páginas personalizadas.
+
+> ⚠️ Nunca subas las credenciales reales de la base de datos, API keys u otras variables sensibles al repositorio.
+
+---
+
+## 📊 Exportación de información
+
+El sistema incorpora **PhpSpreadsheet** para generar y trabajar con archivos de Excel.
+
+Esto permite convertir información del sistema en reportes que pueden ser utilizados para análisis, control administrativo y seguimiento de la operación.
+
+---
+
+## 🧪 Pruebas
+
+Laravel incluye PHPUnit para realizar pruebas automatizadas.
+
+Ejecutar:
+
+```bash
+php artisan test
+```
+
+---
+
+## 👨‍💻 Autor
+
+**Juan José Crespo Aldana**
+
+Estudiante de **Ingeniería de Sistemas** enfocado en desarrollo de software, aplicaciones web y bases de datos.
+
+### 💻 Tecnologías
+
+```text
+Java • JavaScript • Python • PHP
+Laravel • Spring Boot
+MySQL • MariaDB
+Git • GitHub
+```
+
+---
+
+## 📄 Licencia
+
+Este proyecto se encuentra bajo la licencia **MIT**.
+
+---
+
+<p align="center">
+  ⭐ Si este proyecto te resulta interesante, considera darle una estrella al repositorio.
+</p>
+
+<p align="center">
+  <strong>Desarrollado con Laravel 🚀</strong>
+</p>
