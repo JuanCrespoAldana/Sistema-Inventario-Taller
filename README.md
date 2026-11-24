@@ -9,7 +9,7 @@
 ![Vite](https://img.shields.io/badge/Vite-0f172a?style=flat-square&logo=vite&logoColor=646CFF)
 ![Estado](https://img.shields.io/badge/uso-en%20un%20taller%20real-be123c?style=flat-square)
 
-[Qué es](#qué-es) · [Módulos](#módulos) · [Arquitectura](#arquitectura) · [Instalación](#instalación) · [Estructura](#estructura)
+[Qué es](#qué-es) · [Módulos](#módulos) · [Capturas](#capturas) · [Arquitectura](#arquitectura) · [Instalación](#instalación) · [Estructura](#estructura)
 
 </div>
 
@@ -24,9 +24,45 @@ Aplicación web para administrar un taller de reparación y venta de repuestos: 
 | **Dashboard** | Resumen del estado del negocio en una sola pantalla |
 | **Ventas** | Registro de ventas con su detalle de productos |
 | **Reparaciones** | Órdenes de reparación, máquinas y técnicos asignados |
-| **Inventario** | Productos, movimientos de entrada y salida, y ajustes |
+| **Inventario** | Productos con categoría, ubicación y proveedor, movimientos, ajustes de stock, kardex por producto, reposición sugerida e importación y exportación en Excel |
 | **Técnicos** | Gestión del personal técnico y su trabajo |
 | **Reportes** | Ventas, reparaciones, inventario, técnicos y financiero, más un resumen general, con exportación a Excel |
+
+## Capturas
+
+Las capturas usan datos de demostración; no incluyen clientes ni información real del negocio.
+
+![Panel general con indicadores, gráfico de 12 meses y alertas](docs/capturas/dashboard.jpg)
+
+*Panel general: ingresos del mes frente al mismo período anterior, gráfico de ventas y reparaciones de los últimos 12 meses, productos por reponer y máquinas que llevan más tiempo en el taller.*
+
+![Nueva venta con carrito y total](docs/capturas/nueva-venta.jpg)
+
+*Nueva venta: búsqueda de productos por código o nombre con su stock, descuentos y total a pagar.*
+
+![Órdenes de reparación con filtros por estado y técnico](docs/capturas/reparaciones.jpg)
+
+*Órdenes de reparación: cada orden agrupa varias máquinas, cada una con su técnico y su estado, y se filtra por estado, técnico y fecha de salida.*
+
+![Inventario con categoría, ubicación y stock](docs/capturas/inventario.jpg)
+
+*Inventario con categoría, ubicación, margen por producto y filtros por estado del stock.*
+
+![Kardex de un producto](docs/capturas/kardex.jpg)
+
+*Kardex: historial de entradas y salidas de un producto con su saldo después de cada movimiento.*
+
+![Reposición sugerida por proveedor](docs/capturas/reposicion.jpg)
+
+*Reposición: productos por debajo del mínimo con la cantidad sugerida a comprar, agrupables por proveedor y descargables como lista de compra.*
+
+![Importar y exportar inventario desde Excel](docs/capturas/importar.jpg)
+
+*Importación de inventario desde Excel o CSV, con plantilla y vista previa antes de guardar los cambios.*
+
+![Módulo de reportes con resumen del mes](docs/capturas/reportes.jpg)
+
+*Módulo de reportes: ventas, reparaciones, inventario, productividad de técnicos, financiero general y resumen anual, con exportación a Excel.*
 
 ## Arquitectura
 
