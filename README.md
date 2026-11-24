@@ -1,380 +1,127 @@
 <div align="center">
+  <img src="docs/assets/banner.svg" alt="Sistema de Gestión para Taller" width="100%">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0f2027,50:203a43,100:2c5364&height=140&section=header" alt="" />
+<br>
+
+![Laravel](https://img.shields.io/badge/Laravel-12-0f172a?style=flat-square&logo=laravel&logoColor=FF2D20)
+![PHP](https://img.shields.io/badge/PHP-8.2-0f172a?style=flat-square&logo=php&logoColor=777BB4)
+![MySQL](https://img.shields.io/badge/MySQL-MariaDB-0f172a?style=flat-square&logo=mysql&logoColor=4479A1)
+![Vite](https://img.shields.io/badge/Vite-0f172a?style=flat-square&logo=vite&logoColor=646CFF)
+![Estado](https://img.shields.io/badge/uso-en%20un%20taller%20real-be123c?style=flat-square)
+
+[Qué es](#qué-es) · [Módulos](#módulos) · [Arquitectura](#arquitectura) · [Instalación](#instalación) · [Estructura](#estructura)
 
 </div>
 
-# 🔧 Sistema de Gestión para Taller
+## Qué es
 
-<p align="center">
-  <strong>Sistema web integral para la gestión de operaciones, inventario, ventas y reparaciones de un taller.</strong>
-</p>
+Aplicación web para administrar un taller de reparación y venta de repuestos: lleva las ventas, las órdenes de reparación con sus máquinas y técnicos, el inventario con su historial de movimientos y los reportes del negocio. Fue desarrollada para un negocio real, Electroneumática Aldana, y está construida con Laravel siguiendo una arquitectura por servicios.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Laravel-12-FF2D20?style=for-the-badge&logo=laravel&logoColor=white">
-  <img src="https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white">
-  <img src="https://img.shields.io/badge/MySQL%2FMariaDB-Database-4479A1?style=for-the-badge&logo=mysql&logoColor=white">
-  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white">
-</p>
+## Módulos
 
----
+| Módulo | Qué permite |
+| :-- | :-- |
+| **Dashboard** | Resumen del estado del negocio en una sola pantalla |
+| **Ventas** | Registro de ventas con su detalle de productos |
+| **Reparaciones** | Órdenes de reparación, máquinas y técnicos asignados |
+| **Inventario** | Productos, movimientos de entrada y salida, y ajustes |
+| **Técnicos** | Gestión del personal técnico y su trabajo |
+| **Reportes** | Ventas, reparaciones, inventario, técnicos y financiero, más un resumen general, con exportación a Excel |
 
-## 📌 Sobre el proyecto
+## Arquitectura
 
-**Sistema de Gestión para Taller** es una aplicación web desarrollada para centralizar y optimizar los procesos administrativos y operativos de un taller.
+Los controladores reciben la petición, las clases Request validan los datos y la lógica de negocio vive en servicios separados por área. Los modelos Eloquent hablan con la base de datos.
 
-El sistema permite gestionar desde un mismo lugar las **ventas, reparaciones, inventario, técnicos y reportes**, proporcionando una visión general de la operación mediante un dashboard.
+~~~mermaid
+flowchart LR
+  V["Vistas Blade<br/>CSS y JS con Vite"] --> C["Controladores"]
+  C --> Q["Requests<br/>validación"]
+  C --> S["Servicios<br/>Dashboard, Inventario, Reportes, Técnicos, Ventas"]
+  S --> M["Modelos Eloquent"]
+  M --> D[("MySQL o MariaDB")]
+~~~
 
-El proyecto fue desarrollado aplicando una arquitectura organizada basada en **Laravel**, utilizando controladores, modelos, servicios, solicitudes de validación, migraciones y vistas Blade.
+### Modelo de datos simplificado
 
-### 🎯 Objetivo
+~~~mermaid
+erDiagram
+  CLIENTES ||--o{ ORDENES_REPARACION : solicita
+  ORDENES_REPARACION }o--|| MAQUINAS : sobre
+  ORDENES_REPARACION }o--|| TECNICOS : atiende
+  PRODUCTOS ||--o{ MOVIMIENTOS : registra
+  VENTAS ||--|{ DETALLE_VENTA : contiene
+  PRODUCTOS ||--o{ DETALLE_VENTA : se_vende_en
+~~~
 
-Digitalizar y facilitar la gestión de un taller, reduciendo procesos manuales y permitiendo tener la información organizada y disponible en tiempo real.
+## Tecnologías
 
----
+<div align="center">
+  <img src="https://skillicons.dev/icons?i=php,laravel,mysql,html,css,js,vite,git&theme=dark" alt="Tecnologías">
+</div>
 
-## ✨ Funcionalidades principales
+<br>
 
-### 📊 Dashboard
+| Capa | Tecnología |
+| :-- | :-- |
+| Backend | PHP 8.2 o superior · Laravel 12 · PhpSpreadsheet para exportar a Excel |
+| Frontend | Blade · CSS · JavaScript · Vite |
+| Base de datos | MySQL o MariaDB |
+| Control de versiones | Git |
 
-* Resumen general de la operación.
-* Indicadores de ventas.
-* Información de inventario.
-* Seguimiento de reparaciones.
-* Métricas para facilitar la toma de decisiones.
+## Instalación
 
-### 💰 Gestión de ventas
+Requisitos: PHP 8.2 o superior, Composer, Node.js y MySQL o MariaDB.
 
-* Registro de ventas.
-* Detalle de productos vendidos.
-* Control de descuentos.
-* Consulta de ventas.
-* Visualización del detalle de cada venta.
-
-### 🔧 Gestión de reparaciones
-
-* Registro de órdenes de reparación.
-* Gestión de máquinas asociadas a cada orden.
-* Actualización del estado de las reparaciones.
-* Consulta detallada de órdenes.
-* Edición y eliminación de órdenes.
-* Asociación de técnicos y trabajos realizados.
-
-### 📦 Gestión de inventario
-
-* Administración de productos.
-* Registro de movimientos de inventario.
-* Ajustes de existencias.
-* Búsqueda de productos.
-* Control de entradas y salidas.
-* Actualización y eliminación de productos.
-
-### 👨‍🔧 Gestión de técnicos
-
-* Registro de técnicos.
-* Actualización de información.
-* Activación y desactivación de técnicos.
-* Gestión centralizada del personal técnico.
-
-### 📈 Reportes
-
-El sistema cuenta con diferentes módulos de consulta y análisis:
-
-* Reportes de ventas.
-* Reportes de reparaciones.
-* Reportes de inventario.
-* Reportes de técnicos.
-* Reportes financieros.
-* Resúmenes generales.
-* Exportación de información.
-
----
-
-## 🛠️ Tecnologías utilizadas
-
-| Tecnología          | Uso                                    |
-| ------------------- | -------------------------------------- |
-| **PHP 8.2+**        | Lenguaje principal                     |
-| **Laravel 12**      | Framework backend                      |
-| **Blade**           | Motor de plantillas                    |
-| **MySQL / MariaDB** | Base de datos                          |
-| **Vite**            | Compilación y desarrollo frontend      |
-| **JavaScript**      | Interactividad                         |
-| **CSS**             | Diseño y estilos                       |
-| **PhpSpreadsheet**  | Exportación y manejo de archivos Excel |
-| **Git / GitHub**    | Control de versiones                   |
-
----
-
-## 🏗️ Arquitectura del proyecto
-
-El proyecto utiliza una estructura organizada siguiendo las convenciones de Laravel.
-
-```text
-sistema-taller/
-│
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   └── Requests/
-│   │
-│   ├── Models/
-│   ├── Services/
-│   │
-│   └── Providers/
-│
-├── database/
-│   ├── migrations/
-│   ├── factories/
-│   └── seeders/
-│
-├── resources/
-│   ├── js/
-│   └── views/
-│
-├── routes/
-│   └── web.php
-│
-├── public/
-│   ├── css/
-│   └── img/
-│
-├── tests/
-│
-├── composer.json
-└── package.json
-```
-
-### 💡 Separación por responsabilidades
-
-Uno de los aspectos importantes del proyecto es la separación de responsabilidades.
-
-Los **Controllers** gestionan las peticiones HTTP, mientras que diferentes procesos de negocio se encuentran organizados dentro de **Services**, por ejemplo:
-
-```text
-app/
-├── Services/
-│   ├── Dashboard/
-│   ├── Inventario/
-│   ├── Reportes/
-│   ├── Tecnicos/
-│   └── Ventas/
-```
-
-Esto permite mantener el código más organizado, reutilizable y fácil de mantener.
-
----
-
-## 🗄️ Modelo de datos
-
-El sistema trabaja con diferentes entidades relacionadas con la operación del taller:
-
-```text
-Clientes
-   │
-   └── Órdenes de reparación
-            │
-            ├── Máquinas
-            └── Técnicos
-
-Productos
-   │
-   └── Movimientos de inventario
-
-Ventas
-   │
-   └── Detalle de venta
-            │
-            └── Productos
-```
-
-La estructura de la base de datos se administra mediante **migraciones de Laravel**, permitiendo crear y modificar el esquema de manera controlada.
-
----
-
-## 🚀 Instalación
-
-### 1. Clonar el repositorio
-
-```bash
+~~~bash
 git clone https://github.com/JuanCrespoAldana/Sistema-Inventario-Taller.git
-```
-
-Entrar al proyecto:
-
-```bash
 cd Sistema-Inventario-Taller
-```
-
-### 2. Instalar dependencias de PHP
-
-```bash
 composer install
-```
-
-### 3. Configurar las variables de entorno
-
-Crear el archivo `.env`:
-
-```bash
 cp .env.example .env
-```
+~~~
 
-En Windows también puedes copiar manualmente `.env.example` y renombrarlo como:
+Configure la base de datos en el archivo .env y luego prepare la aplicación:
 
-```text
-.env
-```
-
-Después configurar las credenciales de la base de datos.
-
-Ejemplo:
-
-```env
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=sistema_taller
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-### 4. Generar la clave de Laravel
-
-```bash
+~~~bash
+# .env: DB_HOST=127.0.0.1  DB_PORT=3306  DB_DATABASE=sistema_taller  DB_USERNAME=root  DB_PASSWORD=
 php artisan key:generate
-```
-
-### 5. Ejecutar las migraciones
-
-```bash
 php artisan migrate
-```
-
-Si el proyecto utiliza datos iniciales:
-
-```bash
-php artisan db:seed
-```
-
-### 6. Instalar dependencias frontend
-
-```bash
+php artisan db:seed    # opcional: datos de ejemplo
 npm install
-```
+~~~
 
-### 7. Ejecutar el proyecto
+Para ejecutarla en desarrollo use dos terminales:
 
-En una terminal:
-
-```bash
-php artisan serve
-```
-
-En otra terminal:
-
-```bash
+~~~bash
+php artisan serve      # http://127.0.0.1:8000
 npm run dev
-```
+~~~
 
-Después acceder a:
+## Estructura
 
-```text
-http://127.0.0.1:8000
-```
+~~~text
+app/
+├── Http/
+│   ├── Controllers/   Controladores de cada módulo
+│   └── Requests/      Validación de formularios
+├── Models/            Modelos Eloquent
+└── Services/          Lógica de negocio
+    ├── Dashboard/
+    ├── Inventario/
+    ├── Reportes/
+    ├── Tecnicos/
+    └── Ventas/
+database/
+├── migrations/        Esquema de la base de datos
+├── factories/
+└── seeders/           Datos de ejemplo
+~~~
 
----
+## Pruebas
 
-## 📂 Módulos del sistema
-
-```text
-📊 Dashboard
-│
-├── 💰 Ventas
-│
-├── 🔧 Reparaciones
-│
-├── 📦 Inventario
-│   ├── Productos
-│   ├── Movimientos
-│   └── Ajustes
-│
-├── 👨‍🔧 Técnicos
-│
-└── 📈 Reportes
-    ├── Ventas
-    ├── Reparaciones
-    ├── Inventario
-    ├── Técnicos
-    ├── Financiero
-    └── Resumen
-```
-
----
-
-## 🔐 Seguridad y buenas prácticas
-
-El proyecto contempla diferentes prácticas para mantener una estructura segura y organizada:
-
-* Variables sensibles almacenadas mediante `.env`.
-* `.env` excluido del repositorio mediante `.gitignore`.
-* Validación de datos mediante **Form Requests**.
-* Uso de **migraciones** para controlar la estructura de la base de datos.
-* Separación de lógica mediante **Services**.
-* Organización modular de controladores.
-* Manejo de errores mediante páginas personalizadas.
-
-> ⚠️ Nunca subas las credenciales reales de la base de datos, API keys u otras variables sensibles al repositorio.
-
----
-
-## 📊 Exportación de información
-
-El sistema incorpora **PhpSpreadsheet** para generar y trabajar con archivos de Excel.
-
-Esto permite convertir información del sistema en reportes que pueden ser utilizados para análisis, control administrativo y seguimiento de la operación.
-
----
-
-## 🧪 Pruebas
-
-Laravel incluye PHPUnit para realizar pruebas automatizadas.
-
-Ejecutar:
-
-```bash
+~~~bash
 php artisan test
-```
+~~~
 
----
+## Autor
 
-## 👨‍💻 Autor
-
-**Juan José Crespo Aldana**
-
-Estudiante de **Ingeniería de Sistemas** enfocado en desarrollo de software, aplicaciones web y bases de datos.
-
-### 💻 Tecnologías
-
-```text
-Java • JavaScript • Python • PHP
-Laravel • Spring Boot
-MySQL • MariaDB
-Git • GitHub
-```
-
----
-
-## 📄 Licencia
-
-Este proyecto se encuentra bajo la licencia **MIT**.
-
----
-
-<p align="center">
-  ⭐ Si este proyecto te resulta interesante, considera darle una estrella al repositorio.
-</p>
-
-<p align="center">
-  <strong>Desarrollado con Laravel 🚀</strong>
-</p>
+Juan José Crespo Aldana, estudiante de Ingeniería de Sistemas. [LinkedIn](https://www.linkedin.com/in/juan-jos%C3%A9-crespo-aldana-6b6456270/) · [GitHub](https://github.com/JuanCrespoAldana)
