@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0f2027,50:203a43,100:2c5364&height=140&section=header" alt="" />
+
+</div>
+
 # 🔧 Sistema de Gestión para Taller
 
 <p align="center">
@@ -191,13 +197,13 @@ La estructura de la base de datos se administra mediante **migraciones de Larave
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/TU-USUARIO/TU-REPOSITORIO.git
+git clone https://github.com/JuanCrespoAldana/Sistema-Inventario-Taller.git
 ```
 
 Entrar al proyecto:
 
 ```bash
-cd sistema-taller
+cd Sistema-Inventario-Taller
 ```
 
 ### 2. Instalar dependencias de PHP
