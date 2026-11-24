@@ -1,0 +1,9 @@
+# Archivos de librerías que nunca cambian: el navegador los guarda 30 días y no los vuelve a pedir.
+# Si el servidor no tiene estos módulos, el archivo se ignora sin causar errores.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 30 days"
+</IfModule>
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=2592000"
+</IfModule>
