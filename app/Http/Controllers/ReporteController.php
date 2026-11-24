@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Excel\ExcelHelper;
 use Illuminate\Http\Request;
 use App\Services\Reportes\ReporteService;
 use App\Services\Reportes\ReporteExportService;
@@ -18,9 +19,24 @@ class ReporteController extends Controller
 
     private function periodo(Request $request): array
     {
-        $mes  = $request->mes  ?? date('m');
-        $anio = $request->anio ?? date('Y');
-        return [$mes, $anio];
+        return [
+            $this->mesValido($request->input('mes')),
+            $this->anioValido($request->input('anio')),
+        ];
+    }
+
+    private function mesValido($valor): int
+    {
+        $mes = (int) $valor;
+
+        return ($mes >= 1 && $mes <= 12) ? $mes : (int) date('n');
+    }
+
+    private function anioValido($valor): int
+    {
+        $anio = (int) $valor;
+
+        return ($anio >= 2020 && $anio <= 2099) ? $anio : (int) date('Y');
     }
 
     public function index(Request $request)
@@ -47,7 +63,11 @@ class ReporteController extends Controller
     public function inventario(Request $request)
     {
         [$mes, $anio] = $this->periodo($request);
-        $data = $this->service->generarReporteInventario($mes, $anio);
+        $data = $this->service->generarReporteInventario($mes, $anio, true, [
+            'buscar' => $request->input('buscar'),
+            'estado' => $request->input('estado'),
+            'tipo' => $request->input('tipo'),
+        ]);
         return view('reportes.inventario', array_merge($data, compact('mes', 'anio')));
     }
 
@@ -73,7 +93,7 @@ class ReporteController extends Controller
 
     public function resumen(Request $request)
     {
-        $anio = $request->anio ?? date('Y');
+        $anio = $this->anioValido($request->input('anio'));
         $data = $this->service->generarResumenAnual($anio);
         return view('reportes.anual', array_merge($data, compact('anio')));
     }
@@ -86,23 +106,17 @@ class ReporteController extends Controller
             abort(404);
         }
 
-        $mes  = (int) ($request->mes  ?? date('m'));
-        $anio = (int) ($request->anio ?? date('Y'));
+        $mes  = $this->mesValido($request->input('mes'));
+        $anio = $this->anioValido($request->input('anio'));
 
         try {
-            [$spreadsheet, $nombreArchivo] = $exportService->exportar($tipo, $mes, $anio);
+            [$libro, $nombreArchivo] = $exportService->exportar($tipo, $mes, $anio);
 
-            $writer = new Xlsx($spreadsheet);
-
-            return response()->streamDownload(function () use ($writer) {
-                $writer->save('php://output');
-            }, $nombreArchivo, [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ]);
+            return ExcelHelper::descargar($libro, $nombreArchivo);
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->with('error', 'No fue posible generar el archivo de exportación. Intenta nuevamente.');
+            return back()->with('error', 'No fue posible generar el archivo de Excel. Intenta nuevamente; si el problema continúa, avisa al administrador del sistema.');
         }
     }
 }

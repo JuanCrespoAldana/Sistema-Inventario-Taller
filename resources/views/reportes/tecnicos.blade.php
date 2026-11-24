@@ -1,218 +1,111 @@
 @extends('layouts.app')
-@section('title', 'Productividad Técnicos')
 
-@push('styles')
-<style>
-    .rpt-header { display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap; }
-    .rpt-header-ico { width:48px;height:48px;border-radius:12px;background:#f0fdfa;color:#0d9488;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0; }
-    .rpt-header h4 { font-weight:800;color:#1e293b;margin:0 0 2px;font-size:1.2rem; }
-    .rpt-header small { color:#6c757d;font-size:0.82rem; }
+@section('title', 'Productividad')
+@section('page-icon', 'person-gear')
+@section('page-title', 'Productividad de técnicos')
 
-    /* TOP 5 CARDS */
-    .top5-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:22px; }
-    .tec-card { background:#fff;border-radius:12px;border:1px solid #e9ecef;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;align-items:center;gap:12px;transition:all 0.2s; }
-    .tec-card:hover { box-shadow:0 6px 18px rgba(0,0,0,0.09);transform:translateY(-2px); }
-    .tec-rank { width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;flex-shrink:0; }
-    .rank-1 { background:#fef9c3;color:#854d0e; }
-    .rank-2 { background:#e2e8f0;color:#475569; }
-    .rank-3 { background:#fef3c7;color:#92400e; }
-    .rank-n { background:#f0fdfa;color:#0d9488; }
-    .tec-info { flex:1;min-width:0; }
-    .tec-nombre { font-weight:700;font-size:0.9rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .tec-total { font-size:1.1rem;font-weight:800;color:#0d9488; }
-    .tec-sub { font-size:0.73rem;color:#9ca3af; }
-    .tec-bar-wrap { margin-top:5px;background:#f0fdfa;border-radius:4px;height:4px;overflow:hidden; }
-    .tec-bar { height:100%;border-radius:4px;background:linear-gradient(90deg,#0d9488,#14b8a6); }
+@php
+    $mesesEs = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+        7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
+    $mesNombre = $mesesEs[(int) $mes] ?? '';
+    $prod = $productividad ?? [];
+    $sumaTotal = array_sum(array_column($prod, 'total'));
+    $maxVal = count($prod) > 0 ? max(array_column($prod, 'total')) : 1;
+    $top5 = array_slice($prod, 0, 5, true);
+@endphp
 
-    .rpt-card { background:#fff;border-radius:12px;border:1px solid #e9ecef;box-shadow:0 2px 8px rgba(0,0,0,0.04);overflow:hidden;margin-top:6px; }
-    .rpt-card-head { padding:14px 20px;background:#f8fafc;border-bottom:1px solid #e9ecef;display:flex;align-items:center;justify-content:space-between; }
-    .rpt-card-head span { font-weight:700;font-size:0.88rem;color:#374151; }
-    .rpt-table { margin:0; }
-    .rpt-table thead tr { background:#f1f5f9; }
-    .rpt-table thead th { font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:#64748b;padding:11px 16px;border:none;border-bottom:1px solid #e2e8f0; }
-    .rpt-table tbody tr { border-bottom:1px solid #f1f5f9; }
-    .rpt-table tbody tr:last-child { border-bottom:none; }
-    .rpt-table tbody tr:hover { background:#fafbfc; }
-    .rpt-table td { padding:11px 16px;font-size:0.87rem;color:#374151;vertical-align:middle;border:none; }
-    .rpt-table tfoot td { background:#f8fafc;font-weight:700;font-size:0.88rem;padding:13px 16px;border-top:2px solid #e2e8f0;color:#1e293b; }
-    .rank-badge { display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:800;font-size:0.8rem; }
-    .empty-state { text-align:center;padding:50px 20px;color:#9ca3af; }
-    .empty-state i { font-size:2.5rem;display:block;margin-bottom:10px;opacity:0.4; }
-    @media print { .no-print { display:none!important; } }
-</style>
-@endpush
+@section('page-subtitle')
+    {{ $mesNombre }} {{ $anio }} · {{ count($prod) }} {{ count($prod) === 1 ? 'técnico con actividad' : 'técnicos con actividad' }}
+@endsection
 
 @section('content')
-<div>
-
-    @php
-        $mesesEs = [1=>'Enero',2=>'Febrero',3=>'Marzo',4=>'Abril',5=>'Mayo',6=>'Junio',
-                    7=>'Julio',8=>'Agosto',9=>'Septiembre',10=>'Octubre',11=>'Noviembre',12=>'Diciembre'];
-        $mesNombre = $mesesEs[(int)$mes] ?? '';
-        $prod = $productividad ?? [];
-        // prod es array de ['total'=>x,'maquinas'=>y,'mano_obra'=>z] indexado por nombre
-        // ordenado DESC por total ya desde el service
-        $sumaTotal = array_sum(array_column($prod, 'total'));
-        $maxVal    = count($prod) > 0 ? max(array_column($prod, 'total')) : 1;
-        $top5      = array_slice($prod, 0, 5, true);
-    @endphp
-
-    <div class="rpt-header">
-        <div class="rpt-header-ico"><i class="bi bi-person-gear"></i></div>
-        <div>
-            <h4>Productividad de Técnicos</h4>
-            <small>
-                <i class="bi bi-calendar3 me-1"></i>
-                {{ $mesNombre }} {{ $anio }} &nbsp;·&nbsp; {{ count($prod) }} técnicos con actividad
-            </small>
-        </div>
-    </div>
 
     @include('reportes.partials.filtro')
 
-    {{-- TOP 5 EN CUADROS --}}
-    @if(count($top5) > 0)
-        <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:10px;">
-            <i class="bi bi-trophy-fill me-1" style="color:#d97706;"></i> Top {{ count($top5) }} — {{ $mesNombre }} {{ $anio }}
+    @if (count($top5) > 0)
+        <div class="section-title">
+            <i class="bi bi-trophy-fill"></i> Top {{ count($top5) }} — {{ $mesNombre }} {{ $anio }}
         </div>
-        <div class="top5-grid">
-            @foreach($top5 as $nombre => $datos)
+
+        <div class="row g-3 mb-4">
+            @foreach ($top5 as $nombre => $datos)
                 @php $rank = $loop->iteration; @endphp
-                <div class="tec-card">
-                    <div class="tec-rank {{ $rank==1?'rank-1':($rank==2?'rank-2':($rank==3?'rank-3':'rank-n')) }}">
-                        @if($rank==1)<i class="bi bi-trophy-fill" style="color:#b45309;font-size:1rem;"></i>
-                        @elseif($rank==2)<i class="bi bi-award-fill" style="color:#64748b;font-size:1rem;"></i>
-                        @elseif($rank==3)<i class="bi bi-award" style="color:#92400e;font-size:1rem;"></i>
-                        @else <span>{{ $rank }}</span>
-                        @endif
-                    </div>
-                    <div class="tec-info">
-                        <div class="tec-nombre">{{ $nombre }}</div>
-                        <div class="tec-total">${{ number_format($datos['total'], 0, ',', '.') }}</div>
-                        <div class="tec-bar-wrap">
-                            <div class="tec-bar" style="width:{{ $maxVal > 0 ? round(($datos['total']/$maxVal)*100) : 0 }}%"></div>
+                <div class="col-sm-6 col-xl">
+                    <div class="card h-100 mb-0">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="rank-chip {{ $rank <= 3 ? 'rank-' . $rank : '' }}">{{ $rank }}</span>
+                                <span class="cell-title text-truncate">{{ $nombre }}</span>
+                            </div>
+                            <div class="kpi-value mb-2">${{ number_format($datos['total'], 0, ',', '.') }}</div>
+                            <div class="bar-track">
+                                <div class="bar-fill green" style="width: {{ $maxVal > 0 ? round(($datos['total'] / $maxVal) * 100) : 0 }}%"></div>
+                            </div>
+                            <div class="kpi-sub mt-2">
+                                {{ $datos['maquinas'] }} {{ $datos['maquinas'] == 1 ? 'máquina' : 'máquinas' }}
+                                · {{ $sumaTotal > 0 ? round(($datos['total'] / $sumaTotal) * 100, 1) : 0 }}%
+                            </div>
                         </div>
-                        <div class="tec-sub mt-1">{{ $datos['maquinas'] }} máq. · {{ $sumaTotal > 0 ? round(($datos['total']/$sumaTotal)*100,1) : 0 }}%</div>
                     </div>
                 </div>
             @endforeach
         </div>
     @endif
 
-    {{-- TABLA COMPLETA --}}
-    <div class="rpt-card">
-        <div class="rpt-card-head">
-            <span><i class="bi bi-table me-2"></i>Tabla completa — {{ $mesNombre }} {{ $anio }}</span>
-            <small class="no-print">{{ count($prod) }} técnicos</small>
-        </div>
-        <div class="table-responsive">
-            <table class="table rpt-table">
-                <thead>
+    <div class="section-title"><i class="bi bi-table"></i> Tabla completa — {{ $mesNombre }} {{ $anio }}</div>
+
+    @include('partials.filtro-tabla', ['tabla' => 'tablaReporteTecnicos', 'placeholder' => 'Buscar técnico'])
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Pos.</th>
+                    <th>Técnico</th>
+                    <th class="text-center">Máquinas</th>
+                    <th class="text-end">Mano de obra</th>
+                    <th class="text-end">Total cobrado</th>
+                    <th class="text-end no-print">Participación</th>
+                </tr>
+            </thead>
+
+            <tbody id="tablaReporteTecnicos" data-paginar="10">
+                @forelse ($prod as $nombre => $datos)
+                    @php $pct = $sumaTotal > 0 ? round(($datos['total'] / $sumaTotal) * 100, 1) : 0; @endphp
                     <tr>
-                        <th>Pos.</th>
-                        <th>Técnico</th>
-                        <th class="text-center">Máquinas</th>
-                        <th class="text-end">Mano de obra</th>
-                        <th class="text-end">Total cobrado</th>
-                        <th class="text-end no-print">Participación</th>
+                        <td>
+                            <span class="rank-chip {{ $loop->iteration <= 3 ? 'rank-' . $loop->iteration : '' }}">{{ $loop->iteration }}</span>
+                        </td>
+                        <td class="cell-title">{{ $nombre }}</td>
+                        <td class="text-center fw-bold">{{ $datos['maquinas'] }}</td>
+                        <td class="text-end">${{ number_format($datos['mano_obra'], 0, ',', '.') }}</td>
+                        <td class="text-end fw-bold text-success">${{ number_format($datos['total'], 0, ',', '.') }}</td>
+                        <td class="text-end no-print">{{ $pct }}%</td>
                     </tr>
-                </thead>
-                <tbody id="tbody-tec">
-                    @forelse($prod as $nombre => $datos)
-                        @php $pct = $sumaTotal > 0 ? round(($datos['total']/$sumaTotal)*100,1) : 0; @endphp
-                        <tr>
-                            <td>
-                                @if($loop->iteration==1)
-                                    <span class="rank-badge rank-1"><i class="bi bi-trophy-fill" style="color:#b45309;"></i></span>
-                                @elseif($loop->iteration==2)
-                                    <span class="rank-badge rank-2"><i class="bi bi-award-fill" style="color:#64748b;"></i></span>
-                                @elseif($loop->iteration==3)
-                                    <span class="rank-badge rank-3"><i class="bi bi-award" style="color:#92400e;"></i></span>
-                                @else
-                                    <span style="color:#9ca3af;font-size:0.82rem;">{{ $loop->iteration }}°</span>
-                                @endif
-                            </td>
-                            <td style="font-weight:600;">
-                                <i class="bi bi-person-circle me-1" style="color:#0d9488;"></i>{{ $nombre }}
-                            </td>
-                            <td class="text-center">
-                                <span style="font-weight:700;color:#374151;">{{ $datos['maquinas'] }}</span>
-                            </td>
-                            <td class="text-end" style="color:#6c757d;">
-                                ${{ number_format($datos['mano_obra'], 0, ',', '.') }}
-                            </td>
-                            <td class="text-end" style="font-weight:700;color:#0d9488;">
-                                ${{ number_format($datos['total'], 0, ',', '.') }}
-                            </td>
-                            <td class="text-end no-print">
-                                <span style="font-size:0.82rem;color:#6c757d;">{{ $pct }}%</span>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6">
-                                <div class="empty-state">
-                                    <i class="bi bi-person-x"></i>
-                                    No hay técnicos con actividad en este período.
-                                </div>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-                
-                <div class="no-print d-flex align-items-center justify-content-between px-3 py-2 border-top" id="pag-ctrl-tec" style="background:#f8fafc;display:none!important;">
-                    <span id="pag-info-tec" style="font-size:0.82rem;color:#6c757d;"></span>
-                    <span id="pag-texto-tec" style="font-size:0.82rem;color:#6c757d;"></span>
-                    <nav><ul class="pagination pagination-sm mb-0">
-                        <li class="page-item" id="pag-prev-tec"><a class="page-link" href="#">‹ Anterior</a></li>
-                        <li class="page-item disabled"><span class="page-link" id="pag-num-tec"></span></li>
-                        <li class="page-item" id="pag-next-tec"><a class="page-link" href="#">Siguiente ›</a></li>
-                    </ul></nav>
-                </div>
-                @if(count($prod) > 0)
+                @empty
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i class="bi bi-person-x"></i>
+                                <strong>No hay técnicos con actividad en este período</strong>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+
+            @if (count($prod) > 0)
                 <tfoot>
                     <tr>
-                        <td colspan="2" class="text-end">TOTAL</td>
-                        <td class="text-center">{{ array_sum(array_column($prod,'maquinas')) }}</td>
-                        <td class="text-end">${{ number_format(array_sum(array_column($prod,'mano_obra')), 0, ',', '.') }}</td>
-                        <td class="text-end" style="color:#0d9488;">${{ number_format($sumaTotal, 0, ',', '.') }}</td>
+                        <td colspan="2" class="text-end">Total</td>
+                        <td class="text-center">{{ array_sum(array_column($prod, 'maquinas')) }}</td>
+                        <td class="text-end">${{ number_format(array_sum(array_column($prod, 'mano_obra')), 0, ',', '.') }}</td>
+                        <td class="text-end text-success">${{ number_format($sumaTotal, 0, ',', '.') }}</td>
                         <td class="no-print"></td>
                     </tr>
                 </tfoot>
-                @endif
-            </table>
-        </div>
+            @endif
+        </table>
     </div>
 
-</div>
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    initPag('tbody-tec','pag-ctrl-tec','pag-prev-tec','pag-next-tec','pag-num-tec','pag-texto-tec','pag-info-tec',10);
-});
-function initPag(tbodyId,ctrlId,prevId,nextId,numId,textoId,infoId,pageSize){
-    const tbody=document.getElementById(tbodyId);
-    if(!tbody)return;
-    const rows=Array.from(tbody.querySelectorAll('tr')).filter(r=>!r.querySelector('.empty-state'));
-    if(rows.length<=pageSize)return;
-    let page=1;
-    const total=rows.length,pages=Math.ceil(total/pageSize);
-    const ctrl=document.getElementById(ctrlId);
-    ctrl.style.removeProperty('display');ctrl.style.display='flex';
-    function render(){
-        rows.forEach((r,i)=>{r.style.display=(i>=(page-1)*pageSize&&i<page*pageSize)?'':'none';});
-        const desde=(page-1)*pageSize+1,hasta=Math.min(page*pageSize,total);
-        document.getElementById(textoId).textContent=`Mostrando ${desde}–${hasta} de ${total} registros`;
-        document.getElementById(numId).textContent=`Pág. ${page} / ${pages}`;
-        if(infoId&&document.getElementById(infoId)) document.getElementById(infoId).textContent=`${desde}–${hasta} de ${total}`;
-        document.getElementById(prevId).classList.toggle('disabled',page===1);
-        document.getElementById(nextId).classList.toggle('disabled',page===pages);
-    }
-    document.getElementById(prevId).querySelector('a').addEventListener('click',e=>{e.preventDefault();if(page>1){page--;render();}});
-    document.getElementById(nextId).querySelector('a').addEventListener('click',e=>{e.preventDefault();if(page<pages){page++;render();}});
-    render();
-}
-</script>
-@endpush

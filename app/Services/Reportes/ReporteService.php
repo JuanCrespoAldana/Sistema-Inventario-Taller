@@ -13,19 +13,20 @@ class ReporteService
 {
     /**
      * Genera reporte mensual completo.
-     * IMPORTANTE: reparaciones se filtra por fecha_entrada de la orden,
-     * NO por created_at de orden_maquinas (que es la fecha de inserción en BD).
+     * IMPORTANTE: reparaciones se filtra por fecha_salida de la máquina
+     * (y estado = 'entregada'), NO por fecha_entrada ni por created_at
+     * de orden_maquinas (que es la fecha de inserción en BD).
      */
     public function generarReporteMensual($mes, $anio)
     {
-        $inicio = Carbon::create($anio, $mes, 1)->startOfMonth();
-        $fin    = Carbon::create($anio, $mes, 1)->endOfMonth();
+        // Rango [inicio, inicio del mes siguiente): se filtra con >= y < en vez de BETWEEN
+        // para que sea correcto tanto si la columna es DATE como DATETIME.
+        $inicio      = Carbon::create($anio, $mes, 1)->startOfMonth();
+        $finExclusivo = $inicio->copy()->addMonth();
 
         // ================= VENTAS =================
-        $ventas = Venta::whereBetween('fecha', [
-            $inicio->toDateString(),
-            $fin->toDateString(),
-        ])
+        $ventas = Venta::where('fecha', '>=', $inicio->toDateString())
+            ->where('fecha', '<', $finExclusivo->toDateString())
             ->orderByDesc('fecha')
             ->get(['id', 'numero_factura', 'fecha', 'total', 'descuento', 'total_final']);
 
@@ -35,10 +36,9 @@ class ReporteService
         // Filtrar por fecha_salida de la máquina, no por fecha de creación de la orden.
         $reparaciones = OrdenMaquina::with(['orden.cliente', 'tecnico'])
             ->whereNotNull('fecha_salida')
-            ->whereBetween('fecha_salida', [
-                $inicio->toDateString(),
-                $fin->toDateString(),
-            ])
+            ->where('estado', 'entregada')
+            ->where('fecha_salida', '>=', $inicio->toDateString())
+            ->where('fecha_salida', '<', $finExclusivo->toDateString())
             ->orderByDesc('fecha_salida')
             ->get();
 
@@ -94,20 +94,31 @@ class ReporteService
         $totalAnioVentas = 0;
         $totalAnioRep    = 0;
 
+        // Dos consultas agrupadas por mes (antes eran 24: 2 por cada mes del año).
+        $desde = Carbon::create($anio, 1, 1)->startOfYear();
+        $hasta = $desde->copy()->addYear();
+
+        $ventasPorMes = DB::table('ventas')
+            ->where('fecha', '>=', $desde->toDateString())
+            ->where('fecha', '<', $hasta->toDateString())
+            ->selectRaw('MONTH(fecha) as mes, COUNT(*) as count, COALESCE(SUM(total_final),0) as total')
+            ->groupBy(DB::raw('MONTH(fecha)'))
+            ->get()
+            ->keyBy('mes');
+
+        $repPorMes = DB::table('orden_maquinas')
+            ->whereNotNull('fecha_salida')
+            ->where('estado', 'entregada')
+            ->where('fecha_salida', '>=', $desde->toDateString())
+            ->where('fecha_salida', '<', $hasta->toDateString())
+            ->selectRaw('MONTH(fecha_salida) as mes, COUNT(id) as count, COALESCE(SUM(total),0) as total')
+            ->groupBy(DB::raw('MONTH(fecha_salida)'))
+            ->get()
+            ->keyBy('mes');
+
         for ($m = 1; $m <= 12; $m++) {
-            $inicio = Carbon::create($anio, $m, 1)->startOfMonth();
-            $fin    = Carbon::create($anio, $m, 1)->endOfMonth();
-
-            $ventas = DB::table('ventas')
-                ->whereBetween('fecha', [$inicio->toDateString(), $fin->toDateString()])
-                ->selectRaw('COUNT(*) as count, COALESCE(SUM(total_final),0) as total')
-                ->first();
-
-            $reparaciones = DB::table('orden_maquinas')
-                ->whereNotNull('fecha_salida')
-                ->whereBetween('fecha_salida', [$inicio->toDateString(), $fin->toDateString()])
-                ->selectRaw('COUNT(id) as count, COALESCE(SUM(total),0) as total')
-                ->first();
+            $ventas       = $ventasPorMes->get($m);
+            $reparaciones = $repPorMes->get($m);
 
             $tv = floatval($ventas->total ?? 0);
             $tr = floatval($reparaciones->total ?? 0);
@@ -135,30 +146,93 @@ class ReporteService
         ];
     }
 
-    public function generarReporteInventario($mes, $anio)
+    /**
+     * $paginar = true (pantalla): los totales se calculan en SQL y las dos tablas vienen paginadas,
+     * así no se cargan miles de productos en memoria ni se genera una página gigante.
+     * $paginar = false (exportar a Excel): devuelve las listas completas, igual que antes.
+     */
+    public function generarReporteInventario($mes, $anio, bool $paginar = false, array $filtros = [])
     {
-        $productos = Producto::where('activo', 1)
-            ->orderBy('nombre')
-            ->get();
+        $movimientos = MovimientoInventario::with('producto');
 
-        $totalCompra = $productos->sum(fn($p) => $p->precio_compra * $p->stock);
-        $totalVenta  = $productos->sum(fn($p) => $p->precio_venta * $p->stock);
-        $margenPot   = $totalVenta - $totalCompra;
-        $criticos    = $productos->where('stock', 0)->count();
-        $bajos       = $productos->whereBetween('stock', [1, 2])->count();
+        try {
+            $inicioMes = Carbon::create($anio, $mes, 1)->startOfMonth();
+            $movimientos->where('created_at', '>=', $inicioMes->toDateTimeString())
+                ->where('created_at', '<', $inicioMes->copy()->addMonth()->toDateTimeString());
+        } catch (\Throwable $e) {
+            // Mes o año inválido: antes simplemente no devolvía movimientos.
+            $movimientos->whereRaw('1 = 0');
+        }
 
-        $movimientos = MovimientoInventario::with('producto')
-            ->whereYear('created_at', $anio)
-            ->whereMonth('created_at', $mes)
-            ->orderByDesc('created_at')
-            ->get();
+        $movimientos->orderByDesc('created_at');
+
+        if ($paginar) {
+            $stats = Producto::where('activo', 1)
+                ->selectRaw('
+                    COALESCE(SUM(stock * precio_compra), 0) as total_compra,
+                    COALESCE(SUM(stock * precio_venta), 0) as total_venta,
+                    COUNT(CASE WHEN stock <= 0 THEN 1 END) as criticos,
+                    COUNT(CASE WHEN stock > 0 AND stock <= stock_minimo THEN 1 END) as bajos
+                ')
+                ->first();
+
+            $totalCompra = $stats->total_compra;
+            $totalVenta  = $stats->total_venta;
+            $criticos    = (int) $stats->criticos;
+            $bajos       = (int) $stats->bajos;
+
+            $consultaProductos = Producto::where('activo', 1);
+
+            $buscar = trim((string) ($filtros['buscar'] ?? ''));
+            if ($buscar !== '') {
+                $consultaProductos->where(function ($q) use ($buscar) {
+                    $q->where('codigo', 'like', "%{$buscar}%")
+                        ->orWhere('nombre', 'like', "%{$buscar}%")
+                        ->orWhere('modelo', 'like', "%{$buscar}%");
+                });
+
+                $movimientos->whereHas('producto', function ($q) use ($buscar) {
+                    $q->where('codigo', 'like', "%{$buscar}%")
+                        ->orWhere('nombre', 'like', "%{$buscar}%");
+                });
+            }
+
+            match ($filtros['estado'] ?? null) {
+                'agotado' => $consultaProductos->agotados(),
+                'bajo' => $consultaProductos->bajos(),
+                'normal' => $consultaProductos->disponibles(),
+                default => null,
+            };
+
+            if (in_array($filtros['tipo'] ?? null, ['entrada', 'salida', 'ajuste'], true)) {
+                $movimientos->where('tipo', $filtros['tipo']);
+            }
+
+            $productos = $consultaProductos
+                ->orderBy('nombre')
+                ->paginate(15, ['*'], 'prod_page')
+                ->withQueryString();
+
+            $movimientos = $movimientos->paginate(15, ['*'], 'mov_page')->withQueryString();
+        } else {
+            $productos = Producto::where('activo', 1)
+                ->orderBy('nombre')
+                ->get();
+
+            $totalCompra = $productos->sum(fn($p) => $p->precio_compra * $p->stock);
+            $totalVenta  = $productos->sum(fn($p) => $p->precio_venta * $p->stock);
+            $criticos    = $productos->where('stock', '<=', 0)->count();
+            $bajos       = $productos->filter(fn($p) => $p->stock > 0 && $p->stock <= $p->stock_minimo)->count();
+
+            $movimientos = $movimientos->get();
+        }
 
         return [
             'productos'    => $productos,
             'movimientos'  => $movimientos,
             'totalCompra'  => $totalCompra,
             'totalVenta'   => $totalVenta,
-            'margenPot'    => $margenPot,
+            'margenPot'    => $totalVenta - $totalCompra,
             'criticos'     => $criticos,
             'bajos'        => $bajos,
         ];

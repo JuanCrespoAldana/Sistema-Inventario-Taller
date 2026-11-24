@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ReparacionController;
 use App\Http\Controllers\InventarioController;
+use App\Http\Controllers\InventarioImportController;
 use App\Http\Controllers\TecnicoController;
 use App\Http\Controllers\ReporteController;
 
@@ -124,6 +125,39 @@ Route::prefix('inventario')->name('inventario.')->group(function () {
         '/buscar-producto',
         [InventarioController::class, 'buscarProducto']
     )->name('buscar.producto');
+
+    Route::get('/productos/{producto}/kardex', [InventarioController::class, 'kardex'])
+        ->name('kardex');
+
+    Route::get('/productos/{producto}/kardex/exportar', [InventarioController::class, 'kardexExportar'])
+        ->name('kardex.exportar');
+
+    Route::get('/reposicion', [InventarioController::class, 'reposicion'])
+        ->name('reposicion');
+
+    Route::get('/reposicion/exportar', [InventarioController::class, 'reposicionExportar'])
+        ->name('reposicion.exportar');
+
+    Route::get('/exportar', [InventarioController::class, 'exportar'])
+        ->name('exportar');
+
+    Route::get('/importar', [InventarioImportController::class, 'index'])
+        ->name('importar.index');
+
+    Route::get('/importar/plantilla', [InventarioImportController::class, 'plantilla'])
+        ->name('importar.plantilla');
+
+    Route::post('/importar/previsualizar', [InventarioImportController::class, 'previsualizar'])
+        ->name('importar.previsualizar');
+
+    Route::get('/importar/vista/{token}', [InventarioImportController::class, 'vista'])
+        ->name('importar.vista');
+
+    Route::post('/importar/confirmar', [InventarioImportController::class, 'confirmar'])
+        ->name('importar.confirmar');
+
+    Route::post('/importar/cancelar', [InventarioImportController::class, 'cancelar'])
+        ->name('importar.cancelar');
 
 });
 

@@ -8,6 +8,7 @@ use App\Models\Tecnico;
 use App\Models\OrdenReparacion;
 use App\Models\OrdenMaquina;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ReparacionController extends Controller
 {
@@ -82,16 +83,16 @@ class ReparacionController extends Controller
         }
 
         // 🔍 Filtro por fecha de salida desde
-        if ($request->filled('desde')) {
+        if ($request->filled('desde') && $this->fechaValida($request->desde)) {
             $query->whereHas('maquinas', function ($q) use ($request) {
-                $q->whereDate('fecha_salida', '>=', $request->desde);
+                $q->where('fecha_salida', '>=', trim($request->desde));
             });
         }
 
         // 🔍 Filtro por fecha de salida hasta
-        if ($request->filled('hasta')) {
-            $query->whereHas('maquinas', function ($q) use ($request) {
-                $q->whereDate('fecha_salida', '<=', $request->hasta);
+        if ($request->filled('hasta') && ($hastaExclusivo = $this->diaSiguiente($request->hasta))) {
+            $query->whereHas('maquinas', function ($q) use ($hastaExclusivo) {
+                $q->where('fecha_salida', '<', $hastaExclusivo);
             });
         }
 
@@ -100,17 +101,94 @@ class ReparacionController extends Controller
             $query->where('telefono', 'like', '%' . $request->telefono . '%');
         }
 
+        // 🔍 Filtro por descripción de la máquina
+        if ($request->filled('maquina')) {
+            $query->whereHas('maquinas', function ($q) use ($request) {
+                $q->where('descripcion', 'like', '%' . $request->maquina . '%');
+            });
+        }
+
+        // 🔍 Filtro por garantía
+        if (in_array($request->input('garantia'), ['0', '1'], true)) {
+            $query->whereHas('maquinas', function ($q) use ($request) {
+                $q->where('es_garantia', $request->garantia);
+            });
+        }
+
+        // 🔍 Máquinas que siguen en el taller desde hace más de N días
+        if (in_array((string) $request->input('antiguedad'), ['7', '15', '30'], true)) {
+            $limite = Carbon::today()->subDays((int) $request->antiguedad)->toDateString();
+
+            $query->where('fecha_entrada', '<=', $limite)
+                ->whereHas('maquinas', function ($q) {
+                    $q->whereIn('estado', ['pendiente', 'en_reparacion']);
+                });
+        }
+
+        // 🔍 Filtro por fecha de entrada
+        if ($request->filled('entrada_desde') && $this->fechaValida($request->entrada_desde)) {
+            $query->where('fecha_entrada', '>=', trim($request->entrada_desde));
+        }
+
+        if ($request->filled('entrada_hasta') && ($entradaHasta = $this->diaSiguiente($request->entrada_hasta))) {
+            $query->where('fecha_entrada', '<', $entradaHasta);
+        }
+
+        // 🔽 Orden de la tabla (por defecto: N° Orden de mayor a menor)
+        $orden = $request->input('orden', 'orden_desc');
+
+        switch ($orden) {
+            case 'orden_asc':
+                $query->orderByRaw('CAST(numero_orden AS UNSIGNED) ASC');
+                break;
+            case 'reciente':
+                $query->orderByDesc('created_at')->orderByDesc('id');
+                break;
+            case 'orden_desc':
+            default:
+                $query->orderByRaw('CAST(numero_orden AS UNSIGNED) DESC');
+                break;
+        }
+
         $ordenes = $query
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(5)
+            ->paginate(10)
             ->withQueryString();
 
         $tecnicos = Tecnico::where('activo', 1)
             ->orderBy('nombre')
             ->get();
 
-        return view('reparaciones.index', compact('ordenes', 'tecnicos'));
+        $conteoEstados = OrdenMaquina::selectRaw('estado, COUNT(DISTINCT orden_id) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
+        $totalOrdenes = OrdenReparacion::count();
+
+        return view('reparaciones.index', compact('ordenes', 'tecnicos', 'conteoEstados', 'totalOrdenes'));
+    }
+
+    /**
+     * Devuelve el día siguiente a $valor ('Y-m-d') o null si no es una fecha válida.
+     * Sirve para filtrar "hasta el día X inclusive" con  campo < día siguiente,
+     * que funciona igual con columnas DATE y DATETIME y permite usar índices.
+     */
+    private function diaSiguiente($valor): ?string
+    {
+        return $this->fechaValida($valor) ? Carbon::parse($valor)->addDay()->toDateString() : null;
+    }
+
+    private function fechaSalidaSegunEstado($estado, $fecha): ?string
+    {
+        if ($estado !== 'entregada') {
+            return null;
+        }
+
+        return !empty($fecha) ? $fecha : now()->toDateString();
+    }
+
+    private function fechaValida($valor): bool
+    {
+        return is_string($valor) && Carbon::hasFormat(trim($valor), 'Y-m-d');
     }
 
     public function create()
@@ -122,42 +200,36 @@ class ReparacionController extends Controller
 
     public function store(Request $request)
     {
-        // ❌ Validar número de orden repetido
-        $existe = OrdenReparacion::where('numero_orden', $request->numero_orden)->exists();
-
-        if ($existe) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('error', 'El número de orden ya existe. Por favor usa otro.');
-        }
-
         $request->validate([
             'numero_orden' => 'required|unique:ordenes_reparacion,numero_orden',
             'cliente_nombre' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:50',
             'fecha_entrada' => 'required|date',
 
-            'maquinas' => 'required|array|min:1',
+            'maquinas' => 'required|array|min:1|max:26',
             'maquinas.*.descripcion' => 'required|string|max:255',
-            'maquinas.*.estado' => 'required|string',
+            'maquinas.*.estado' => 'required|in:pendiente,en_reparacion,entregada',
             'maquinas.*.tecnico_id' => 'nullable|exists:tecnicos,id',
-            'maquinas.*.mano_obra' => 'nullable|numeric',
-            'maquinas.*.total' => 'nullable|numeric',
+            'maquinas.*.mano_obra' => 'nullable|numeric|min:0',
+            'maquinas.*.total' => 'nullable|numeric|min:0',
             'maquinas.*.fecha_salida' => 'nullable|date',
         ], [
             'numero_orden.required' => 'El número de orden es obligatorio.',
-            'numero_orden.unique' => 'El número de orden ya existe.',
+            'numero_orden.unique' => 'El número de orden ya existe. Por favor usa otro.',
             'cliente_nombre.required' => 'El nombre del cliente es obligatorio.',
             'cliente_nombre.max' => 'El nombre del cliente no puede exceder los 255 caracteres.',
             'telefono.max' => 'El teléfono no puede exceder los 50 caracteres.',
             'fecha_entrada.required' => 'La fecha de entrada es obligatoria.',
             'fecha_entrada.date' => 'La fecha de entrada debe ser una fecha válida.',
             'maquinas.required' => 'Debe agregar al menos una máquina.',
+            'maquinas.max' => 'No se pueden agregar más de 26 máquinas en una misma orden.',
             'maquinas.*.descripcion.required' => 'La descripción de la máquina es obligatoria.',
             'maquinas.*.descripcion.max' => 'La descripción de la máquina no puede exceder los 255 caracteres.',
             'maquinas.*.estado.required' => 'El estado de la máquina es obligatorio.',
+            'maquinas.*.estado.in' => 'El estado de la máquina seleccionado no es válido.',
             'maquinas.*.tecnico_id.exists' => 'El técnico seleccionado no es válido.',
+            'maquinas.*.mano_obra.min' => 'La mano de obra debe ser igual o mayor a cero.',
+            'maquinas.*.total.min' => 'El total debe ser igual o mayor a cero.',
         ]);
 
         try {
@@ -192,9 +264,9 @@ class ReparacionController extends Controller
                     'es_garantia' => $maquina['es_garantia'] ?? 0,
                     'tipo_garantia' => $maquina['tipo_garantia'] ?? null,
                     'factura' => $maquina['factura'] ?? null,
-                    'mano_obra' => $maquina['mano_obra'] ?? 0,
-                    'total' => $maquina['total'] ?? 0,
-                    'fecha_salida' => $maquina['fecha_salida'] ?? null,
+                    'mano_obra' => isset($maquina['mano_obra']) ? str_replace('.', '', $maquina['mano_obra']) : 0,
+                    'total' => isset($maquina['total']) ? str_replace('.', '', $maquina['total']) : 0,
+                    'fecha_salida' => $this->fechaSalidaSegunEstado($maquina['estado'], $maquina['fecha_salida'] ?? null),
                 ]);
 
                 $letra++; // B, C, D...
@@ -206,6 +278,8 @@ class ReparacionController extends Controller
                 ->with('success', 'Orden de reparación guardada correctamente');
 
         } catch (\Exception $e) {
+            report($e);
+
             return redirect()
                 ->back()
                 ->withInput()
@@ -220,7 +294,7 @@ class ReparacionController extends Controller
             'telefono' => 'nullable|string|max:50',
             'fecha_entrada' => 'required|date',
 
-            'maquinas' => 'required|array|min:1',
+            'maquinas' => 'required|array|min:1|max:26',
             'maquinas.*.descripcion' => 'required|string|max:255',
             'maquinas.*.estado' => 'required|in:pendiente,en_reparacion,entregada',
             'maquinas.*.tecnico_id' => 'nullable|exists:tecnicos,id',
@@ -237,6 +311,7 @@ class ReparacionController extends Controller
             'fecha_entrada.required' => 'La fecha de entrada es obligatoria.',
             'fecha_entrada.date' => 'La fecha de entrada debe ser una fecha válida.',
             'maquinas.required' => 'Debe agregar al menos una máquina.',
+            'maquinas.max' => 'No se pueden agregar más de 26 máquinas en una misma orden.',
             'maquinas.*.descripcion.required' => 'La descripción de la máquina es obligatoria.',
             'maquinas.*.descripcion.max' => 'La descripción de la máquina no puede exceder los 255 caracteres.',
             'maquinas.*.estado.required' => 'El estado de la máquina es obligatorio.',
@@ -274,10 +349,6 @@ class ReparacionController extends Controller
 
             foreach ($request->maquinas as $m) {
 
-                // Limpiar valores monetarios
-                $m['mano_obra'] = str_replace('.', '', $m['mano_obra'] ?? 0);
-                $m['total'] = str_replace('.', '', $m['total'] ?? 0);
-
                 if (isset($m['id'])) {
 
                     // Actualizar existente (ya cargada arriba, sin volver a consultar)
@@ -287,11 +358,10 @@ class ReparacionController extends Controller
 
                         $nuevoEstado = $m['estado'] ?? 'pendiente';
 
-                        // Fecha de salida: usar la que ingresó el usuario;
-                        // si marcó "entregada" y no escribió fecha, poner hoy.
-                        $fechaSalida = !empty($m['fecha_salida'])
-                            ? $m['fecha_salida']
-                            : ($nuevoEstado === 'entregada' ? now()->toDateString() : null);
+                        // Fecha de salida: solo tiene sentido si el estado es "entregada".
+                        // Si se usa la que ingresó el usuario y no escribió fecha, poner hoy;
+                        // si el estado no es "entregada", se limpia (aunque el form traiga una vieja).
+                        $fechaSalida = $this->fechaSalidaSegunEstado($nuevoEstado, $m['fecha_salida'] ?? null);
 
                         // Preparar todos los datos (incluyendo estado y fecha_salida)
                         $dataUpdate = [
@@ -311,14 +381,8 @@ class ReparacionController extends Controller
                                 : 0,
                         ];
 
-                        if ($nuevoEstado === 'entregada' && $maquina->estado !== 'entregada') {
-                            $maquina->update($dataUpdate);
-                            $maquina->refresh();
-                        } else {
-                            // Actualizar directamente sin restricciones de flujo
-                            $maquina->update($dataUpdate);
-                            $maquina->refresh();
-                        }
+                        $maquina->update($dataUpdate);
+                        $maquina->refresh();
 
                         $idsActuales[] = $maquina->id;
                     }
@@ -341,7 +405,7 @@ class ReparacionController extends Controller
                         'es_garantia' => $m['es_garantia'] ?? 0,
                         'tipo_garantia' => $m['tipo_garantia'] ?? null,
                         'factura' => $m['factura'] ?? null,
-                        'fecha_salida' => $m['fecha_salida'] ?? null,
+                        'fecha_salida' => $this->fechaSalidaSegunEstado($m['estado'] ?? 'pendiente', $m['fecha_salida'] ?? null),
                         'cotizacion' => $m['cotizacion'] ?? null,
                         'mano_obra' => isset($m['mano_obra'])
                             ? str_replace('.', '', $m['mano_obra'])
@@ -360,17 +424,31 @@ class ReparacionController extends Controller
         // ELIMINAR LAS BORRADAS
         // ==========================
 
-        $orden->maquinas()
-            ->whereNotIn('id', $idsActuales)
-            ->delete();
+        if (!empty($idsActuales)) {
+            $orden->maquinas()
+                ->whereNotIn('id', $idsActuales)
+                ->delete();
+        }
 
             });
+
+            if ($request->expectsJson()) {
+                return response()->json(['mensaje' => 'Orden actualizada correctamente']);
+            }
 
             return redirect()
                 ->route('reparaciones.index')
                 ->with('success', 'Orden actualizada correctamente');
 
         } catch (\Exception $e) {
+            report($e);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'mensaje' => 'No se pudo actualizar la orden. Por favor revise los datos e intente nuevamente.',
+                ], 500);
+            }
+
             return redirect()
                 ->back()
                 ->withInput()

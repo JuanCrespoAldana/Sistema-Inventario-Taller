@@ -1,179 +1,131 @@
-{{-- ================= MODAL HEADER ================= --}}
-<div class="modal-header bg-primary text-white">
-    <h5 class="modal-title">
-        <i class="bi bi-wrench-adjustable"></i> Orden de reparación
-    </h5>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+@php
+    $etiquetaEstado = [
+        'pendiente' => 'Pendiente',
+        'en_reparacion' => 'En reparación',
+        'entregada' => 'Entregada',
+    ];
+@endphp
+
+<div class="modal-header">
+    <div class="modal-heading">
+        <h5 class="modal-title">
+            <i class="bi bi-wrench-adjustable"></i> Orden de reparación {{ $orden->numero_orden }}
+        </h5>
+        <p class="modal-subtitle">
+            {{ optional($orden->cliente)->nombre ?? 'Sin cliente' }} ·
+            {{ $orden->maquinas->count() }} {{ $orden->maquinas->count() === 1 ? 'máquina' : 'máquinas' }}
+        </p>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 </div>
 
-{{-- ================= MODAL BODY ================= --}}
 <div class="modal-body">
 
-    {{-- ================= INFORMACIÓN GENERAL ================= --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header fw-bold bg-light">
-            <i class="bi bi-info-circle"></i> Información general
-        </div>
+    <div class="form-block">
+        <div class="form-block-head"><span><i class="bi bi-people"></i> Datos del cliente y de la orden</span></div>
+        <div class="form-block-body">
+            <div class="fields-grid">
+                <div>
+                    <span class="info-label">N° de orden</span>
+                    <div class="info-value">{{ $orden->numero_orden ?? '—' }}</div>
+                </div>
 
-        <div class="card-body row g-3">
+                <div class="span-2">
+                    <span class="info-label">Cliente</span>
+                    <div class="info-value">{{ optional($orden->cliente)->nombre ?? '—' }}</div>
+                </div>
 
-            <div class="col-md-3">
-                <small class="text-muted">N° Orden</small>
-                <div class="fw-bold fs-6">
-                    {{ $orden->numero_orden ?? '—' }}
+                <div>
+                    <span class="info-label">Teléfono</span>
+                    <div class="info-value">{{ $orden->telefono ?: '—' }}</div>
+                </div>
+
+                <div>
+                    <span class="info-label">Fecha de entrada</span>
+                    <div class="info-value">
+                        {{ $orden->fecha_entrada ? \Carbon\Carbon::parse($orden->fecha_entrada)->format('d/m/Y') : '—' }}
+                    </div>
                 </div>
             </div>
-
-            <div class="col-md-3">
-                <small class="text-muted">Cliente</small>
-                <div class="fw-bold">
-                    {{ optional($orden->cliente)->nombre ?? '—' }}
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <small class="text-muted">Teléfono</small>
-                <div class="fw-bold">
-                    {{ $orden->telefono ?? '—' }}
-                </div>
-            </div>
-
-            <div class="col-md-3">
-                <small class="text-muted">Fecha de entrada</small>
-                <div class="fw-bold">
-                    {{ $orden->fecha_entrada
-                        ? \Carbon\Carbon::parse($orden->fecha_entrada)->format('d/m/Y')
-                        : '—'
-                    }}
-                </div>
-            </div>
-
         </div>
     </div>
 
-    {{-- ================= MÁQUINAS ================= --}}
-    <div class="card shadow-sm">
-        <div class="card-header fw-bold bg-light">
-            <i class="bi bi-cpu"></i> Máquinas a reparar
-        </div>
+    <div class="section-title mt-4 mb-3"><i class="bi bi-cpu"></i> Máquinas de la orden</div>
 
-        <div class="card-body">
+    <div class="d-grid gap-3">
+        @forelse ($orden->maquinas as $i => $m)
+            <div class="maquina-card" data-estado="{{ $m->estado }}">
 
-            @forelse ($orden->maquinas as $i => $m)
-                <div class="border rounded p-3 mb-4">
-
-                    {{-- HEADER MÁQUINA --}}
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">
-                            <i class="bi bi-hdd"></i>
-                            {{ $m->etiqueta_maquina ?? chr(65 + $i) }}
-                        </h6>
-
+                <div class="maquina-card-head">
+                    <div class="maquina-card-title">
+                        <span class="maquina-letra-chip">{{ $m->etiqueta_maquina ?? chr(65 + $i) }}</span>
+                        <strong>{{ $m->descripcion ?? '—' }}</strong>
                     </div>
+                    <span class="badge maquina-estado-pill">
+                        {{ $etiquetaEstado[$m->estado] ?? ucfirst(str_replace('_', ' ', $m->estado)) }}
+                    </span>
+                </div>
 
-                    {{-- INFO GENERAL --}}
-                    <div class="row g-3 mb-3">
+                <div class="maquina-card-body">
 
-                        <div class="col-md-4">
-                            <small class="text-muted">Maquina</small>
-                            <div    class="fw-bold">
-                                {{ $m->descripcion ?? '—' }}
+                    <div class="form-group-title"><i class="bi bi-cpu"></i> Equipo y seguimiento</div>
+
+                    <div class="fields-grid">
+                        <div>
+                            <span class="info-label">Técnico</span>
+                            <div class="info-value">{{ optional($m->tecnico)->nombre ?? 'Sin asignar' }}</div>
+                        </div>
+
+                        <div>
+                            <span class="info-label">Fecha de salida</span>
+                            <div class="info-value">
+                                {{ $m->fecha_salida ? \Carbon\Carbon::parse($m->fecha_salida)->format('d/m/Y') : '—' }}
                             </div>
                         </div>
 
-                        <div class="col-md-4">
-                            <small class="text-muted">Técnico</small>
-                            <div class="fw-bold">
-                                {{ optional($m->tecnico)->nombre ?? 'Sin asignar' }}
-                            </div>
+                        <div>
+                            <span class="info-label">N° de factura</span>
+                            <div class="info-value">{{ $m->factura ?: '—' }}</div>
                         </div>
 
-                        <div class="col-md-4">
-                            <small class="text-muted">Estado</small>
-                            <div class="fw-bold">
-                                {{ ucfirst(str_replace('_', ' ', $m->estado)) }}
+                        <div>
+                            <span class="info-label">Garantía</span>
+                            <div class="info-value">
+                                {{ $m->es_garantia ? ($m->tipo_garantia ?: 'Sí') : 'No' }}
                             </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <small class="text-muted">¿Garantía?</small>
-                            <div class="fw-bold">
-                                {{ $m->es_garantia ? 'Sí' : 'No' }}
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <small class="text-muted">Tipo garantía</small>
-                            <div class="fw-bold">
-                                {{ $m->tipo_garantia ?? '—' }}
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <small class="text-muted">Factura</small>
-                            <div class="fw-bold">
-                                {{ $m->factura ?? '—' }}
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <small class="text-muted">Fecha de salida</small>
-                            <div class="fw-bold">
-                                {{ $m->fecha_salida
-                                    ? \Carbon\Carbon::parse($m->fecha_salida)->format('d/m/Y')
-                                    : 'F/A'
-                                }}
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {{-- ================= COTIZACIÓN (TEXTO) ================= --}}
-                    <div class="mb-3">
-                        <small class="text-muted fw-bold">
-                            <i class="bi bi-clipboard-check"></i> Cotización
-                        </small>
-
-                        <div class="border rounded bg-light p-3 mt-1 fw-bold"
-                             style="white-space: pre-line;">
-                            {{ $m->cotizacion ?? 'Sin detalles de reparación.' }}
                         </div>
                     </div>
 
-                    {{-- ================= RESUMEN ECONÓMICO ================= --}}
-                    <div class="row mt-3">
+                    <div class="form-group-title"><i class="bi bi-clipboard-check"></i> Cotización</div>
 
-                        <div class="col-md-6">
-                            <small class="text-muted">Mano de obra</small>
-                            <div class="fw-bold">
-                                ${{ number_format((float)($m->mano_obra ?? 0), 0, ',', '.') }}
-                            </div>
+                    <div class="cotizacion-box">{{ $m->cotizacion ?: 'Sin detalles de reparación.' }}</div>
+
+                    <div class="form-group-title"><i class="bi bi-cash-coin"></i> Valores</div>
+
+                    <div class="fields-grid">
+                        <div>
+                            <span class="info-label">Mano de obra</span>
+                            <div class="info-value">${{ number_format((float) ($m->mano_obra ?? 0), 0, ',', '.') }}</div>
                         </div>
 
-                        <div class="col-md-6">
-                            <small class="text-muted">Total</small>
-                            <div class="fw-bold text-success">
-                                ${{ number_format((float)($m->total ?? 0), 0, ',', '.') }}
-                            </div>
+                        <div>
+                            <span class="info-label">Total a cobrar</span>
+                            <div class="info-value info-total">${{ number_format((float) ($m->total ?? 0), 0, ',', '.') }}</div>
                         </div>
-
                     </div>
 
                 </div>
-            @empty
-                <div class="text-muted text-center">
-                    No hay máquinas registradas.
-                </div>
-            @endforelse
-
-        </div>
+            </div>
+        @empty
+            <div class="empty-state">
+                <i class="bi bi-cpu"></i>
+                <strong>No hay máquinas registradas</strong>
+            </div>
+        @endforelse
     </div>
 
 </div>
 
-{{-- ================= MODAL FOOTER ================= --}}
 <div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-        Cerrar
-    </button>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
 </div>

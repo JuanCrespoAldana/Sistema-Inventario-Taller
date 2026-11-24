@@ -1,238 +1,92 @@
-<form action="{{ route('reparaciones.update', $orden->id) }}" method="POST">
+@php
+    $maquinasForm = $orden->maquinas->map(fn($m) => [
+        'id' => $m->id,
+        'descripcion' => $m->descripcion,
+        'tecnico_id' => $m->tecnico_id,
+        'tecnico_nombre' => optional($m->tecnico)->nombre,
+        'estado' => $m->estado,
+        'es_garantia' => $m->es_garantia,
+        'tipo_garantia' => $m->tipo_garantia,
+        'factura' => $m->factura,
+        'cotizacion' => $m->cotizacion,
+        'fecha_salida' => optional($m->fecha_salida)->format('Y-m-d'),
+        'mano_obra' => $m->mano_obra,
+        'total' => $m->total,
+    ])->values();
+@endphp
 
+<form action="{{ route('reparaciones.update', $orden->id) }}" method="POST" data-sin-bloqueo>
     @csrf
     @method('PUT')
 
-    @if ($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show">
-            <ul class="mb-0">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    <div class="modal-header">
+        <div class="modal-heading">
+            <h5 class="modal-title">
+                <i class="bi bi-pencil-square"></i> Editar orden {{ $orden->numero_orden }}
+            </h5>
+            <p class="modal-subtitle">
+                {{ optional($orden->cliente)->nombre ?? 'Sin cliente' }} ·
+                {{ $orden->maquinas->count() }} {{ $orden->maquinas->count() === 1 ? 'máquina' : 'máquinas' }}
+            </p>
         </div>
-    @endif
-
-    @php
-        $oldMaquinas = old('maquinas', []);
-    @endphp
-
-    {{-- ================= MODAL HEADER ================= --}}
-    <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">
-            <i class="bi bi-wrench-adjustable"></i> Editar orden de reparación
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
     </div>
 
-    {{-- ================= MODAL BODY ================= --}}
-    <div class="modal-body" style="max-height:75vh; overflow-y:auto;">
+    <div class="modal-body">
 
-        {{-- ================= INFORMACIÓN GENERAL ================= --}}
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header fw-bold bg-light">
-                <i class="bi bi-info-circle"></i> Información general
-            </div>
-
-            <div class="card-body">
-                <div class="row g-4">
-
-                    <div class="col-md-3">
-                        <small class="text-muted">N° Orden</small>
+        <div class="form-block">
+            <div class="form-block-head"><span><i class="bi bi-people"></i> Datos del cliente y de la orden</span></div>
+            <div class="form-block-body">
+                <div class="fields-grid">
+                    <div>
+                        <label class="form-label">N° de orden</label>
                         <input type="text" class="form-control" value="{{ $orden->numero_orden }}" readonly>
                     </div>
 
-                    <div class="col-md-3">
-                        <small class="text-muted">Cliente</small>
-                        <input type="text" name="cliente_nombre" class="form-control @error('cliente_nombre') is-invalid @enderror"
-                            value="{{ old('cliente_nombre', optional($orden->cliente)->nombre) }}">
-                        @error('cliente_nombre')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div class="span-2">
+                        <label class="form-label" for="edit-cliente">Cliente</label>
+                        <input type="text" id="edit-cliente" name="cliente_nombre" class="form-control"
+                            value="{{ optional($orden->cliente)->nombre }}" maxlength="255" required>
                     </div>
 
-                    <div class="col-md-3">
-                        <small class="text-muted">Teléfono</small>
-                        <input type="text" name="telefono" class="form-control @error('telefono') is-invalid @enderror" value="{{ old('telefono', $orden->telefono) }}">
-                        @error('telefono')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div>
+                        <label class="form-label" for="edit-telefono">Teléfono</label>
+                        <input type="text" id="edit-telefono" name="telefono" class="form-control"
+                            value="{{ $orden->telefono }}" maxlength="50">
                     </div>
 
-                    <div class="col-md-3">
-                        <small class="text-muted">Fecha de entrada</small>
-                        <input type="date" name="fecha_entrada" class="form-control @error('fecha_entrada') is-invalid @enderror"
-                            value="{{ old('fecha_entrada', $orden->fecha_entrada) }}">
-                        @error('fecha_entrada')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
+                    <div>
+                        <label class="form-label" for="edit-fecha">Fecha de entrada</label>
+                        <input type="date" id="edit-fecha" name="fecha_entrada" class="form-control"
+                            value="{{ optional($orden->fecha_entrada)->format('Y-m-d') }}" required>
                     </div>
-
                 </div>
             </div>
         </div>
 
-        {{-- ================= MÁQUINAS ================= --}}
-        <div class="card shadow-sm border-0">
-            <div class="card-header fw-bold bg-light d-flex justify-content-between align-items-center">
-                <span>
-                    <i class="bi bi-cpu"></i> Máquinas a reparar
-                </span>
-
-                <button type="button" class="btn btn-sm btn-primary btn-agregar-maquina">
-                    <i class="bi bi-plus-circle"></i> Agregar máquina
-                </button>
-            </div>
-
-            <div class="card-body" id="contenedor-maquinas">
-
-                @foreach ($orden->maquinas as $i => $m)
-
-                    <div class="card shadow-sm border-0 mb-4 maquina-item">
-
-                        <div class="card-body">
-
-                            <input type="hidden" name="maquinas[{{ $i }}][id]" value="{{ $m->id }}">
-
-                            {{-- HEADER MAQUINA --}}
-                            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-                                <h6 class="mb-0 titulo-maquina fw-bold">
-                                    <i class="bi bi-hdd"></i>
-                                    Máquina {{ chr(65 + $i) }}
-                                </h6>
-
-                                <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-maquina">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-
-                            {{-- DATOS PRINCIPALES --}}
-                            <div class="row g-4 mb-4">
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Máquina</small>
-                                    <input type="text" name="maquinas[{{ $i }}][descripcion]" class="form-control @error('maquinas.'.$i.'.descripcion') is-invalid @enderror"
-                                        value="{{ old('maquinas.'.$i.'.descripcion', $m->descripcion) }}">
-                                    @error('maquinas.'.$i.'.descripcion')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Técnico</small>
-                                    <select name="maquinas[{{ $i }}][tecnico_id]" class="form-control @error('maquinas.'.$i.'.tecnico_id') is-invalid @enderror">
-                                        <option value="">Sin asignar</option>
-                                        @foreach($tecnicos as $t)
-                                            <option value="{{ $t->id }}" {{ old('maquinas.'.$i.'.tecnico_id', $m->tecnico_id) == $t->id ? 'selected' : '' }}>
-                                                {{ $t->nombre }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('maquinas.'.$i.'.tecnico_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Estado</small>
-                                    <select name="maquinas[{{ $i }}][estado]" class="form-control @error('maquinas.'.$i.'.estado') is-invalid @enderror">
-                                        <option value="pendiente" {{ old('maquinas.'.$i.'.estado', $m->estado) == 'pendiente' ? 'selected' : '' }}>
-                                            Pendiente
-                                        </option>
-                                        <option value="en_reparacion" {{ old('maquinas.'.$i.'.estado', $m->estado) == 'en_reparacion' ? 'selected' : '' }}>
-                                            En reparación
-                                        </option>
-                                        <option value="entregada" {{ old('maquinas.'.$i.'.estado', $m->estado) == 'entregada' ? 'selected' : '' }}>
-                                            Entregada
-                                        </option>
-                                    </select>
-                                    @error('maquinas.'.$i.'.estado')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">¿Garantía?</small>
-                                    <select name="maquinas[{{ $i }}][es_garantia]" class="form-control @error('maquinas.'.$i.'.es_garantia') is-invalid @enderror">
-                                        <option value="0" {{ old('maquinas.'.$i.'.es_garantia', $m->es_garantia) == 0 ? 'selected' : '' }}>No</option>
-                                        <option value="1" {{ old('maquinas.'.$i.'.es_garantia', $m->es_garantia) == 1 ? 'selected' : '' }}>Sí</option>
-                                    </select>
-                                    @error('maquinas.'.$i.'.es_garantia')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Tipo garantía</small>
-                                    <input type="text" name="maquinas[{{ $i }}][tipo_garantia]" class="form-control"
-                                        value="{{ old('maquinas.'.$i.'.tipo_garantia', $m->tipo_garantia) }}">
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Factura</small>
-                                    <input type="text" name="maquinas[{{ $i }}][factura]" class="form-control"
-                                        value="{{ old('maquinas.'.$i.'.factura', $m->factura) }}">
-                                </div>
-
-                                <div class="col-md-4">
-                                    <small class="text-muted">Fecha de salida</small>
-                                    <input type="date" name="maquinas[{{ $i }}][fecha_salida]" class="form-control"
-                                        value="{{ old('maquinas.'.$i.'.fecha_salida', $m->fecha_salida) }}">
-                                </div>
-
-                            </div>
-
-                            {{-- COTIZACIÓN --}}
-                            <div class="mb-4">
-                                <small class="text-muted fw-bold">
-                                    <i class="bi bi-clipboard-check"></i> Cotización
-                                </small>
-                                <textarea name="maquinas[{{ $i }}][cotizacion]" class="form-control mt-2"
-                                    rows="3">{{ old('maquinas.'.$i.'.cotizacion', $m->cotizacion) }}</textarea>
-                            </div>
-
-                            {{-- COSTOS --}}
-                            <div class="row g-4">
-
-                                <div class="col-md-6">
-                                    <small class="text-muted">Mano de obra</small>
-                                    <div class="input-group mt-1">
-                                        <span class="input-group-text">$</span>
-                                        <input type="text" name="maquinas[{{ $i }}][mano_obra]" class="form-control dinero"
-                                            value="{{ old('maquinas.'.$i.'.mano_obra', number_format((float) $m->mano_obra, 0, ',', '.')) }}">
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <small class="text-muted">Total</small>
-                                    <div class="input-group mt-1">
-                                        <span class="input-group-text">$</span>
-                                        <input type="text" name="maquinas[{{ $i }}][total]" class="form-control dinero"
-                                            value="{{ old('maquinas.'.$i.'.total', number_format((float) $m->total, 0, ',', '.')) }}">
-                                    </div>
-                                </div>
-
-                            </div>
-
-                        </div>
-                    </div>
-
-                @endforeach
-
-            </div>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 mt-4">
+            <div class="section-title my-0"><i class="bi bi-cpu"></i> Máquinas de la orden</div>
+            <button type="button" class="btn btn-primary btn-sm btn-agregar-maquina">
+                <i class="bi bi-plus-circle"></i> Agregar máquina
+            </button>
         </div>
 
+        <div id="contenedor-maquinas" class="d-grid gap-3">
+            @foreach ($maquinasForm as $i => $m)
+                @include('reparaciones.partials.maquina', ['m' => $m, 'i' => $i, 'letra' => chr(65 + $i)])
+            @endforeach
+        </div>
+
+        <template id="plantilla-maquina">
+            @include('reparaciones.partials.maquina', ['m' => [], 'i' => '__INDEX__', 'letra' => 'A'])
+        </template>
+
     </div>
 
-    {{-- ================= MODAL FOOTER ================= --}}
-    <div class="modal-footer bg-light">
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button type="submit" class="btn btn-success">
-            Guardar cambios
-        </button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            Cancelar
+            <i class="bi bi-check-lg"></i> Guardar cambios
         </button>
     </div>
-
 </form>

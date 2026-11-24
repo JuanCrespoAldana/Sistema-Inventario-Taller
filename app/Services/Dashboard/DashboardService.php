@@ -2,19 +2,209 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\Producto;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class DashboardService
 {
-    private function mes()
+    /** Segundos que se guarda el resultado del dashboard (se borra antes si se guarda algo). */
+    private const CACHE_SEGUNDOS = 30;
+
+    /** Días en el taller a partir de los cuales una máquina se marca como "antigua". */
+    public const DIAS_ORDEN_ANTIGUA = 15;
+
+    /**
+     * Rango [inicio, fin) del mes actual como fechas 'Y-m-d'.
+     * Se filtra con >= inicio y < fin en vez de whereMonth()/whereYear(): da el mismo
+     * resultado, pero MySQL puede usar el índice de la columna en lugar de recorrer la tabla.
+     */
+    private function rangoMes(): array
     {
-        return Carbon::now()->month;
+        $inicio = Carbon::now()->startOfMonth();
+
+        return [$inicio->toDateString(), $inicio->copy()->addMonth()->toDateString()];
     }
 
-    private function anio()
+    private static function claveCache(): string
     {
-        return Carbon::now()->year;
+        return 'dashboard:datos:' . Carbon::now()->format('Y-m');
+    }
+
+    /** Borra el dashboard guardado para que la próxima visita lo recalcule. */
+    public static function limpiarCache(): void
+    {
+        try {
+            Cache::forget(self::claveCache());
+        } catch (\Throwable $e) {
+            // Si el caché falla, el dashboard simplemente se calcula de nuevo: no es un error grave.
+        }
+    }
+
+    /**
+     * Todos los datos que necesita la vista dashboard.index.
+     * Se guarda 30 s en caché y se borra solo al guardar ventas, órdenes, productos o movimientos.
+     */
+    public function datosDashboard(): array
+    {
+        return Cache::remember(self::claveCache(), self::CACHE_SEGUNDOS, function () {
+            $rep = $this->resumenReparacionesMes();
+            $ven = $this->resumenVentasMes();
+            $inv = $this->resumenInventario();
+            $ant = $this->resumenMesAnterior();
+            $hoy = $this->resumenHoy();
+            $antiguas = $this->ordenesAntiguas();
+
+            return [
+                // ================= REPARACIONES =================
+                'repMes' => $rep->cantidad,
+                'repActivas' => $this->reparacionesActivas(),
+                'ingRepMes' => $rep->ingresos,
+                'ordenesAntiguas' => $antiguas['lista'],
+                'ordenesAntiguasTotal' => $antiguas['total'],
+                'diasOrdenAntigua' => self::DIAS_ORDEN_ANTIGUA,
+
+                // ================= VENTAS =================
+                'ventasMes' => $ven->cantidad,
+                'ingVentasMes' => $ven->ingresos,
+                'topProductosHistorico' => $this->topProductosVendidosHistorico(),
+
+                // ================= COMPARACIÓN =================
+                'ventasMesAnt' => $ant->ventas,
+                'ingRepMesAnt' => $ant->reparaciones,
+                'ventasHoy' => $hoy->ventas,
+                'ingVentasHoy' => $hoy->ingresos,
+                'entregasHoy' => $hoy->entregas,
+
+                // ================= INVENTARIO =================
+                'valorCompra' => $inv->compra,
+                'valorVenta' => $inv->venta,
+                'totalProductos' => $inv->total,
+                'totalCriticos' => $inv->sin_stock,
+                'totalBajos' => $inv->bajos,
+                'porReponer' => $this->productosPorReponer(),
+                'sinRotacion' => $this->productosSinRotacion(),
+
+                // ================= TECNICOS =================
+                'productividad' => $this->productividadTecnicos(),
+                'productividad3m' => $this->productividadTecnicos(3),
+
+                // ================= GRAFICAS =================
+                'grafica12meses' => $this->ventasReparacionesUltimos12Meses(),
+            ];
+        });
+    }
+
+    /* =====================================================
+       Resúmenes (una sola consulta en lugar de dos)
+    ===================================================== */
+
+    private function resumenReparacionesMes(): object
+    {
+        [$ini, $fin] = $this->rangoMes();
+
+        $r = DB::table('orden_maquinas')
+            ->where('estado', 'entregada')
+            ->where('fecha_salida', '>=', $ini)
+            ->where('fecha_salida', '<', $fin)
+            ->selectRaw('COUNT(*) as cantidad, SUM(total) as ingresos')
+            ->first();
+
+        return (object) [
+            'cantidad' => $r->cantidad,
+            'ingresos' => $r->ingresos ?: 0,
+        ];
+    }
+
+    private function resumenVentasMes(): object
+    {
+        [$ini, $fin] = $this->rangoMes();
+
+        $r = DB::table('ventas')
+            ->where('fecha', '>=', $ini)
+            ->where('fecha', '<', $fin)
+            ->selectRaw('COUNT(*) as cantidad, SUM(total_final) as ingresos')
+            ->first();
+
+        return (object) [
+            'cantidad' => $r->cantidad,
+            'ingresos' => $r->ingresos ?: 0,
+        ];
+    }
+
+    private function resumenInventario(): object
+    {
+        $r = DB::table('productos')
+            ->where('activo', 1)
+            ->selectRaw('
+                COUNT(*) as total,
+                SUM(stock * precio_compra) as compra,
+                SUM(stock * precio_venta) as venta,
+                COUNT(CASE WHEN stock <= 0 THEN 1 END) as sin_stock,
+                COUNT(CASE WHEN stock > 0 AND stock <= stock_minimo THEN 1 END) as bajos
+            ')
+            ->first();
+
+        return (object) [
+            'total' => (int) ($r->total ?? 0),
+            'compra' => $r->compra ?? 0,
+            'venta' => $r->venta ?? 0,
+            'sin_stock' => (int) ($r->sin_stock ?? 0),
+            'bajos' => (int) ($r->bajos ?? 0),
+        ];
+    }
+
+    /**
+     * Ventas y reparaciones del mes anterior hasta el mismo día del mes
+     * (para comparar "peras con peras" a mitad de mes).
+     */
+    private function resumenMesAnterior(): object
+    {
+        $inicio = Carbon::now()->startOfMonth();
+        $inicioAnt = $inicio->copy()->subMonthNoOverflow();
+        $finAnt = $inicioAnt->copy()->addDays(Carbon::now()->day);
+
+        if ($finAnt->gt($inicio)) {
+            $finAnt = $inicio->copy();
+        }
+
+        $v = DB::table('ventas')
+            ->where('fecha', '>=', $inicioAnt->toDateString())
+            ->where('fecha', '<', $finAnt->toDateString())
+            ->sum('total_final');
+
+        $r = DB::table('orden_maquinas')
+            ->where('estado', 'entregada')
+            ->where('fecha_salida', '>=', $inicioAnt->toDateString())
+            ->where('fecha_salida', '<', $finAnt->toDateString())
+            ->sum('total');
+
+        return (object) ['ventas' => (float) $v, 'reparaciones' => (float) $r];
+    }
+
+    private function resumenHoy(): object
+    {
+        $hoy = Carbon::today();
+        $manana = $hoy->copy()->addDay();
+
+        $v = DB::table('ventas')
+            ->where('fecha', '>=', $hoy->toDateString())
+            ->where('fecha', '<', $manana->toDateString())
+            ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total_final), 0) as ingresos')
+            ->first();
+
+        $entregas = DB::table('orden_maquinas')
+            ->where('estado', 'entregada')
+            ->where('fecha_salida', '>=', $hoy->toDateString())
+            ->where('fecha_salida', '<', $manana->toDateString())
+            ->count();
+
+        return (object) [
+            'ventas' => (int) ($v->cantidad ?? 0),
+            'ingresos' => (float) ($v->ingresos ?? 0),
+            'entregas' => (int) $entregas,
+        ];
     }
 
     /* =====================================================
@@ -23,10 +213,7 @@ class DashboardService
 
     public function reparacionesMes()
     {
-        return DB::table('orden_maquinas')
-            ->whereMonth('fecha_salida', $this->mes())
-            ->whereYear('fecha_salida', $this->anio())
-            ->count();
+        return $this->resumenReparacionesMes()->cantidad;
     }
 
     public function reparacionesActivas()
@@ -38,11 +225,7 @@ class DashboardService
 
     public function ingresosReparacionesMes()
     {
-        return DB::table('orden_maquinas')
-            ->whereMonth('fecha_salida', $this->mes())
-            ->whereYear('fecha_salida', $this->anio())
-            ->where('estado', 'entregada')
-            ->sum('total');
+        return $this->resumenReparacionesMes()->ingresos;
     }
 
     /* =====================================================
@@ -51,20 +234,12 @@ class DashboardService
 
     public function ventasMes()
     {
-        return DB::table('ventas')
-            ->whereMonth('fecha', $this->mes())
-            ->whereYear('fecha', $this->anio())
-            ->count();
+        return $this->resumenVentasMes()->cantidad;
     }
 
     public function ingresosVentasMes()
     {
-        $total = DB::table('ventas')
-            ->whereMonth('fecha', $this->mes())
-            ->whereYear('fecha', $this->anio())
-            ->sum('total_final');
-
-        return $total ?? 0;
+        return $this->resumenVentasMes()->ingresos;
     }
 
     /**
@@ -107,46 +282,91 @@ class DashboardService
 
     public function valorInventarioCompra()
     {
-        $total = DB::table('productos')
-            ->selectRaw('SUM(stock * precio_compra) as total')
-            ->where('activo', 1)
-            ->value('total');
-
-        return $total ?? 0;
+        return $this->resumenInventario()->compra;
     }
 
     public function valorInventarioVenta()
     {
-        $total = DB::table('productos')
-            ->selectRaw('SUM(stock * precio_venta) as total')
-            ->where('activo', 1)
-            ->value('total');
-
-        return $total ?? 0;
+        return $this->resumenInventario()->venta;
     }
 
-    public function productosCriticos()
+    /** Agotados primero y luego los de menos stock; máximo 8 para el panel. */
+    public function productosPorReponer()
     {
         try {
-            $data = collect(DB::select("
-                SELECT id, nombre, stock, codigo
+            return collect(DB::select("
+                SELECT id, codigo, nombre, stock, stock_minimo
                 FROM productos
-                WHERE stock = 0
-                  AND activo = 1
-                ORDER BY nombre ASC
-                LIMIT 50
-            "));
-
-            return $data->map(function ($item) {
-                return (object) [
-                    'id' => $item->id,
-                    'nombre' => $item->nombre ?? 'Desconocido',
-                    'stock' => intval($item->stock ?? 0),
-                    'codigo' => $item->codigo ?? ''
-                ];
-            });
+                WHERE activo = 1
+                  AND (stock <= 0 OR stock <= stock_minimo)
+                ORDER BY stock ASC, nombre ASC
+                LIMIT 8
+            "))->map(fn($item) => (object) [
+                'id' => $item->id,
+                'codigo' => $item->codigo ?? '',
+                'nombre' => $item->nombre ?? 'Desconocido',
+                'stock' => (int) ($item->stock ?? 0),
+                'stock_minimo' => (int) ($item->stock_minimo ?? 0),
+            ]);
         } catch (\Exception $e) {
             return collect();
+        }
+    }
+
+    /** Productos con stock que no se venden hace 90 días y el dinero que tienen inmovilizado. */
+    public function productosSinRotacion(): object
+    {
+        try {
+            $r = Producto::activos()->sinRotacion(90)
+                ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(stock * precio_compra), 0) as valor')
+                ->first();
+
+            return (object) ['cantidad' => (int) ($r->cantidad ?? 0), 'valor' => (float) ($r->valor ?? 0)];
+        } catch (\Exception $e) {
+            return (object) ['cantidad' => 0, 'valor' => 0.0];
+        }
+    }
+
+    /**
+     * Las máquinas que llevan más tiempo en el taller sin entregarse.
+     *
+     * @return array{lista: \Illuminate\Support\Collection, total: int}
+     */
+    public function ordenesAntiguas(): array
+    {
+        try {
+            $base = DB::table('orden_maquinas as om')
+                ->join('ordenes_reparacion as o', 'o.id', '=', 'om.orden_id')
+                ->whereIn('om.estado', ['pendiente', 'en_reparacion']);
+
+            $limite = Carbon::today()->subDays(self::DIAS_ORDEN_ANTIGUA)->toDateString();
+            $total = (clone $base)->where('o.fecha_entrada', '<=', $limite)->count();
+
+            $hoy = Carbon::today();
+
+            $lista = (clone $base)
+                ->join('clientes as c', 'c.id', '=', 'o.cliente_id')
+                ->leftJoin('tecnicos as t', 't.id', '=', 'om.tecnico_id')
+                ->orderBy('o.fecha_entrada')
+                ->orderBy('om.id')
+                ->limit(6)
+                ->get([
+                    'om.orden_id', 'om.etiqueta_maquina', 'om.descripcion', 'om.estado',
+                    'o.numero_orden', 'o.fecha_entrada', 'c.nombre as cliente', 't.nombre as tecnico',
+                ])
+                ->map(fn($m) => (object) [
+                    'orden_id' => $m->orden_id,
+                    'numero_orden' => $m->numero_orden,
+                    'cliente' => $m->cliente,
+                    'maquina' => trim(($m->etiqueta_maquina ? $m->etiqueta_maquina . ' · ' : '') . ($m->descripcion ?? '')),
+                    'estado' => $m->estado,
+                    'tecnico' => $m->tecnico,
+                    'dias' => (int) abs(Carbon::parse($m->fecha_entrada)->startOfDay()->diffInDays($hoy)),
+                ]);
+
+            return ['lista' => $lista, 'total' => (int) $total];
+        } catch (\Exception $e) {
+            return ['lista' => collect(), 'total' => 0];
         }
     }
 
@@ -213,7 +433,7 @@ class DashboardService
                 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic'
             ];
             for ($i = 11; $i >= 0; $i--) {
-                $fecha = Carbon::now()->subMonths($i);
+                $fecha = Carbon::now()->startOfMonth()->subMonths($i);
                 $mesKey = $fecha->format('Y-m');
                 $mesesArray[$mesKey] = [
                     'mes' => $mesesEs[(int) $fecha->format('n')],

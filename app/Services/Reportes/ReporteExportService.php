@@ -2,9 +2,11 @@
 
 namespace App\Services\Reportes;
 
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use App\Models\Venta;
+use App\Services\Excel\ExcelHelper;
+use Carbon\Carbon;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ReporteExportService
 {
@@ -19,236 +21,296 @@ class ReporteExportService
     }
 
     /**
-     * Genera el archivo .xlsx para el tipo de reporte indicado.
-     * Usa exactamente los mismos métodos del ReporteService que alimentan
-     * las vistas en pantalla, así que siempre exporta TODOS los registros
-     * del período filtrado, sin depender de la paginación visual.
+     * Genera el libro de Excel del reporte pedido con TODOS los registros del período
+     * (no depende de la paginación de la pantalla).
      *
-     * @return array{0: Spreadsheet, 1: string} [$spreadsheet, $nombreArchivo]
+     * @return array{0: Spreadsheet, 1: string} [$libro, $nombreArchivo]
      */
     public function exportar(string $tipo, int $mes, int $anio): array
     {
-        $spreadsheet = new Spreadsheet();
+        ExcelHelper::preparar();
 
-        match ($tipo) {
-            'ventas'       => $this->hojaVentas($spreadsheet, $mes, $anio),
-            'reparaciones' => $this->hojaReparaciones($spreadsheet, $mes, $anio),
-            'tecnicos'     => $this->hojaTecnicos($spreadsheet, $mes, $anio),
-            'financiero'   => $this->hojaFinanciero($spreadsheet, $mes, $anio),
-            'inventario'   => $this->hojaInventario($spreadsheet, $mes, $anio),
-            'anual'        => $this->hojaAnual($spreadsheet, $anio),
-            default        => throw new \InvalidArgumentException('Tipo de reporte no reconocido.'),
+        $periodo = self::MESES_ES[$mes] . " {$anio}";
+
+        $libro = match ($tipo) {
+            'ventas' => $this->libroVentas($mes, $anio, $periodo),
+            'reparaciones' => $this->libroReparaciones($mes, $anio, $periodo),
+            'tecnicos' => $this->libroTecnicos($mes, $anio, $periodo),
+            'financiero' => $this->libroFinanciero($mes, $anio, $periodo),
+            'inventario' => $this->libroInventario($mes, $anio, $periodo),
+            'anual' => $this->libroAnual($anio),
+            default => throw new \InvalidArgumentException('Tipo de reporte no reconocido.'),
         };
 
-        $nombreArchivo = $tipo === 'anual'
+        $nombre = $tipo === 'anual'
             ? "reporte_anual_{$anio}.xlsx"
             : 'reporte_' . $tipo . '_' . self::MESES_ES[$mes] . "_{$anio}.xlsx";
 
-        return [$spreadsheet, $nombreArchivo];
+        return [$libro, $nombre];
     }
 
-    private function estiloEncabezado($sheet, string $rango): void
+    private function cabecera(Worksheet $hoja, string $titulo, string $detalle, int $columnas): int
     {
-        $sheet->getStyle($rango)->getFont()->setBold(true);
-        $sheet->getStyle($rango)->getFill()
-            ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('E2E8F0');
-    }
-
-    private function autoAjustarColumnas($sheet, int $totalColumnas): void
-    {
-        for ($i = 1; $i <= $totalColumnas; $i++) {
-            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
-        }
-    }
-
-    private function hojaVentas(Spreadsheet $spreadsheet, int $mes, int $anio): void
-    {
-        $data = $this->reporteService->generarReporteMensual($mes, $anio);
-
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Ventas');
-        $sheet->fromArray(['Factura', 'Cliente', 'Fecha', 'Total'], null, 'A1');
-        $this->estiloEncabezado($sheet, 'A1:D1');
-
-        $fila = 2;
-        foreach ($data['ventas'] as $venta) {
-            $sheet->setCellValue("A{$fila}", $venta->numero_factura);
-            $sheet->setCellValue("B{$fila}", $venta->cliente->nombre ?? 'Sin cliente');
-            $sheet->setCellValue("C{$fila}", optional($venta->fecha)->format('d/m/Y'));
-            $sheet->setCellValue("D{$fila}", (float) ($venta->total_final ?? $venta->total));
-            $fila++;
-        }
-
-        $sheet->setCellValue("C{$fila}", 'TOTAL');
-        $sheet->setCellValue("D{$fila}", (float) $data['totalVentasMes']);
-        $sheet->getStyle("C{$fila}:D{$fila}")->getFont()->setBold(true);
-
-        $this->autoAjustarColumnas($sheet, 4);
-    }
-
-    private function hojaReparaciones(Spreadsheet $spreadsheet, int $mes, int $anio): void
-    {
-        $data = $this->reporteService->generarReporteMensual($mes, $anio);
-
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Reparaciones');
-        $sheet->fromArray(['Orden', 'Técnico', 'Fecha de salida', 'Total'], null, 'A1');
-        $this->estiloEncabezado($sheet, 'A1:D1');
-
-        $fila = 2;
-        foreach ($data['reparaciones'] as $rep) {
-            $sheet->setCellValue("A{$fila}", $rep->orden->numero_orden ?? ('#' . $rep->orden_id));
-            $sheet->setCellValue("B{$fila}", $rep->tecnico->nombre ?? 'Sin técnico');
-            $sheet->setCellValue("C{$fila}", optional($rep->fecha_salida)->format('d/m/Y'));
-            $sheet->setCellValue("D{$fila}", (float) $rep->total);
-            $fila++;
-        }
-
-        $sheet->setCellValue("C{$fila}", 'TOTAL');
-        $sheet->setCellValue("D{$fila}", (float) $data['totalReparacionesMes']);
-        $sheet->getStyle("C{$fila}:D{$fila}")->getFont()->setBold(true);
-
-        $this->autoAjustarColumnas($sheet, 4);
-    }
-
-    private function hojaTecnicos(Spreadsheet $spreadsheet, int $mes, int $anio): void
-    {
-        $data = $this->reporteService->generarReporteMensual($mes, $anio);
-        $prod = $data['productividad'];
-        $sumaTotal = array_sum(array_column($prod, 'total'));
-
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Técnicos');
-        $sheet->fromArray(
-            ['Posición', 'Técnico', 'Máquinas', 'Mano de obra', 'Total cobrado', 'Participación %'],
-            null,
-            'A1'
+        return ExcelHelper::encabezadoDocumento(
+            $hoja,
+            $titulo,
+            $detalle . ' · Generado el ' . Carbon::now()->format('d/m/Y H:i'),
+            $columnas
         );
-        $this->estiloEncabezado($sheet, 'A1:F1');
+    }
 
-        $fila = 2;
-        $pos = 1;
-        foreach ($prod as $nombre => $datos) {
-            $pct = $sumaTotal > 0 ? round(($datos['total'] / $sumaTotal) * 100, 1) : 0;
-            $sheet->setCellValue("A{$fila}", $pos);
-            $sheet->setCellValue("B{$fila}", $nombre);
-            $sheet->setCellValue("C{$fila}", $datos['maquinas']);
-            $sheet->setCellValue("D{$fila}", (float) $datos['mano_obra']);
-            $sheet->setCellValue("E{$fila}", (float) $datos['total']);
-            $sheet->setCellValue("F{$fila}", $pct);
-            $fila++;
-            $pos++;
+    private function libroVentas(int $mes, int $anio, string $periodo): Spreadsheet
+    {
+        $inicio = Carbon::create($anio, $mes, 1)->startOfMonth();
+
+        $ventas = Venta::with('detalles.producto')
+            ->where('fecha', '>=', $inicio->toDateString())
+            ->where('fecha', '<', $inicio->copy()->addMonth()->toDateString())
+            ->orderBy('fecha')
+            ->orderBy('id')
+            ->get();
+
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Ventas');
+        $fila = $this->cabecera($hoja, 'Reporte de ventas', $periodo, 7);
+
+        $formatos = ['texto', 'fecha', 'texto', 'entero', 'dinero', 'dinero', 'dinero'];
+        $filas = [];
+
+        foreach ($ventas as $v) {
+            $productos = $v->detalles->map(fn($d) => ($d->producto->nombre ?? 'Producto eliminado') . ' ×' . $d->cantidad)->implode('; ');
+            $filas[] = [
+                $v->numero_factura,
+                $v->fecha,
+                $productos,
+                $v->detalles->sum('cantidad'),
+                $v->total,
+                $v->descuento ?? 0,
+                $v->total_final ?? $v->total,
+            ];
         }
 
-        $this->autoAjustarColumnas($sheet, 6);
+        $siguiente = ExcelHelper::tabla($hoja, $fila, ['Factura', 'Fecha', 'Productos', 'Unidades', 'Subtotal', 'Descuento', 'Total'], $filas, $formatos);
+
+        ExcelHelper::filaTotales($hoja, $siguiente, [
+            'TOTAL', '', count($filas) . ' ventas', $ventas->flatMap->detalles->sum('cantidad'),
+            $ventas->sum('total'), $ventas->sum('descuento'), $ventas->sum('total_final'),
+        ], $formatos, 7);
+
+        $detalle = ExcelHelper::hojaNueva($libro, 'Detalle por producto');
+        $fila = $this->cabecera($detalle, 'Detalle de ventas por producto', $periodo, 7);
+
+        $formatosDetalle = ['texto', 'fecha', 'texto', 'texto', 'entero', 'dinero', 'dinero'];
+        $filasDetalle = [];
+
+        foreach ($ventas as $v) {
+            foreach ($v->detalles as $d) {
+                $filasDetalle[] = [
+                    $v->numero_factura,
+                    $v->fecha,
+                    $d->producto->codigo ?? '',
+                    $d->producto->nombre ?? 'Producto eliminado',
+                    $d->cantidad,
+                    $d->precio_unitario,
+                    $d->total,
+                ];
+            }
+        }
+
+        $siguiente = ExcelHelper::tabla($detalle, $fila, ['Factura', 'Fecha', 'Código', 'Producto', 'Cantidad', 'Precio unitario', 'Total línea'], $filasDetalle, $formatosDetalle);
+
+        ExcelHelper::filaTotales($detalle, $siguiente, [
+            'TOTAL', '', '', '', array_sum(array_column($filasDetalle, 4)), '', array_sum(array_map(fn($f) => (float) $f[6], $filasDetalle)),
+        ], $formatosDetalle, 7);
+
+        return $libro;
     }
 
-    private function hojaFinanciero(Spreadsheet $spreadsheet, int $mes, int $anio): void
+    private function libroReparaciones(int $mes, int $anio, string $periodo): Spreadsheet
     {
         $data = $this->reporteService->generarReporteMensual($mes, $anio);
-        $v = (float) $data['totalVentasMes'];
-        $r = (float) $data['totalReparacionesMes'];
-        $t = (float) $data['totalGeneral'];
-        $pctV = $t > 0 ? round(($v / $t) * 100, 1) : 0;
-        $pctR = $t > 0 ? round(($r / $t) * 100, 1) : 0;
+        $maquinas = $data['reparaciones']->sortBy('fecha_salida')->values();
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Financiero');
-        $sheet->fromArray(['Concepto', 'Monto', 'Participación %'], null, 'A1');
-        $this->estiloEncabezado($sheet, 'A1:C1');
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Reparaciones');
+        $fila = $this->cabecera($hoja, 'Reporte de reparaciones', $periodo . ' · máquinas entregadas', 10);
 
-        $sheet->fromArray([
-            ['Ventas', $v, $pctV],
-            ['Reparaciones', $r, $pctR],
-            ['TOTAL GENERAL', $t, 100],
-        ], null, 'A2');
+        $formatos = ['texto', 'texto', 'texto', 'texto', 'fecha', 'fecha', 'texto', 'texto', 'dinero', 'dinero'];
+        $filas = [];
 
-        $sheet->getStyle('A4:C4')->getFont()->setBold(true);
+        foreach ($maquinas as $m) {
+            $filas[] = [
+                $m->orden->numero_orden ?? ('#' . $m->orden_id),
+                $m->orden->cliente->nombre ?? 'Sin cliente',
+                trim(($m->etiqueta_maquina ? $m->etiqueta_maquina . ' · ' : '') . ($m->descripcion ?? '')),
+                $m->tecnico->nombre ?? 'Sin técnico',
+                $m->orden->fecha_entrada ?? null,
+                $m->fecha_salida,
+                $m->es_garantia ? ($m->tipo_garantia ?: 'Sí') : 'No',
+                $m->factura ?: '',
+                $m->mano_obra,
+                $m->total,
+            ];
+        }
 
-        $this->autoAjustarColumnas($sheet, 3);
+        $siguiente = ExcelHelper::tabla(
+            $hoja,
+            $fila,
+            ['Orden', 'Cliente', 'Máquina', 'Técnico', 'Fecha de ingreso', 'Fecha de salida', 'Garantía', 'Factura', 'Mano de obra', 'Total'],
+            $filas,
+            $formatos
+        );
+
+        ExcelHelper::filaTotales($hoja, $siguiente, [
+            'TOTAL', '', count($filas) . ' máquinas', '', '', '', '', '', $maquinas->sum('mano_obra'), $maquinas->sum('total'),
+        ], $formatos, 10);
+
+        return $libro;
     }
 
-    private function hojaInventario(Spreadsheet $spreadsheet, int $mes, int $anio): void
+    private function libroTecnicos(int $mes, int $anio, string $periodo): Spreadsheet
+    {
+        $data = $this->reporteService->generarReporteMensual($mes, $anio);
+        $productividad = $data['productividad'];
+        $sumaTotal = array_sum(array_column($productividad, 'total'));
+
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Técnicos');
+        $fila = $this->cabecera($hoja, 'Productividad de técnicos', $periodo, 6);
+
+        $formatos = ['entero', 'texto', 'entero', 'dinero', 'dinero', 'porcentaje'];
+        $filas = [];
+        $posicion = 1;
+
+        foreach ($productividad as $nombre => $datos) {
+            $filas[] = [
+                $posicion++,
+                $nombre,
+                $datos['maquinas'],
+                $datos['mano_obra'],
+                $datos['total'],
+                $sumaTotal > 0 ? round(($datos['total'] / $sumaTotal) * 100, 1) : 0,
+            ];
+        }
+
+        $siguiente = ExcelHelper::tabla($hoja, $fila, ['Posición', 'Técnico', 'Máquinas', 'Mano de obra', 'Total cobrado', 'Participación'], $filas, $formatos);
+
+        ExcelHelper::filaTotales($hoja, $siguiente, [
+            '', 'TOTAL', array_sum(array_column($productividad, 'maquinas')), array_sum(array_column($productividad, 'mano_obra')), $sumaTotal, $sumaTotal > 0 ? 100 : 0,
+        ], $formatos, 6);
+
+        return $libro;
+    }
+
+    private function libroFinanciero(int $mes, int $anio, string $periodo): Spreadsheet
+    {
+        $data = $this->reporteService->generarReporteMensual($mes, $anio);
+
+        $ventas = (float) $data['totalVentasMes'];
+        $reparaciones = (float) $data['totalReparacionesMes'];
+        $total = (float) $data['totalGeneral'];
+        $cantidadVentas = $data['ventas']->count();
+        $cantidadMaquinas = $data['reparaciones']->count();
+
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Resumen financiero');
+        $fila = $this->cabecera($hoja, 'Resumen financiero', $periodo, 4);
+
+        $formatos = ['texto', 'entero', 'dinero', 'porcentaje'];
+
+        $siguiente = ExcelHelper::tabla($hoja, $fila, ['Concepto', 'Cantidad', 'Ingresos', 'Participación'], [
+            ['Ventas de productos', $cantidadVentas, $ventas, $total > 0 ? round($ventas / $total * 100, 1) : 0],
+            ['Reparaciones entregadas', $cantidadMaquinas, $reparaciones, $total > 0 ? round($reparaciones / $total * 100, 1) : 0],
+        ], $formatos, false);
+
+        ExcelHelper::filaTotales($hoja, $siguiente, ['TOTAL GENERAL', $cantidadVentas + $cantidadMaquinas, $total, $total > 0 ? 100 : 0], $formatos, 4);
+
+        $indicadores = ExcelHelper::hojaNueva($libro, 'Indicadores');
+        $fila = $this->cabecera($indicadores, 'Indicadores del período', $periodo, 2);
+
+        ExcelHelper::tabla($indicadores, $fila, ['Indicador', 'Valor'], [
+            ['Ticket promedio de venta', $cantidadVentas > 0 ? round($ventas / $cantidadVentas) : 0],
+            ['Ticket promedio por máquina reparada', $cantidadMaquinas > 0 ? round($reparaciones / $cantidadMaquinas) : 0],
+            ['Mano de obra del período', $data['reparaciones']->sum('mano_obra')],
+            ['Descuentos otorgados en ventas', $data['ventas']->sum('descuento')],
+        ], ['texto', 'dinero'], false);
+
+        return $libro;
+    }
+
+    private function libroInventario(int $mes, int $anio, string $periodo): Spreadsheet
     {
         $data = $this->reporteService->generarReporteInventario($mes, $anio);
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Productos');
-        $sheet->fromArray(
-            ['Código', 'Producto', 'Stock', 'Estado', 'P. Compra', 'P. Venta', 'Valor Total'],
-            null,
-            'A1'
-        );
-        $this->estiloEncabezado($sheet, 'A1:G1');
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Productos');
+        $fila = $this->cabecera($hoja, 'Reporte de inventario', 'Estado actual de los productos activos', 13);
 
-        $fila = 2;
+        $formatos = ['texto', 'texto', 'texto', 'texto', 'texto', 'texto', 'entero', 'entero', 'texto', 'dinero', 'dinero', 'dinero', 'dinero'];
+        $filas = [];
+
         foreach ($data['productos'] as $p) {
-            $estado = $p->stock == 0 ? 'CRÍTICO' : ($p->stock <= 2 ? 'BAJO' : 'Normal');
-            $sheet->setCellValue("A{$fila}", $p->codigo);
-            $sheet->setCellValue("B{$fila}", $p->nombre . ($p->modelo ? " — {$p->modelo}" : ''));
-            $sheet->setCellValue("C{$fila}", $p->stock);
-            $sheet->setCellValue("D{$fila}", $estado);
-            $sheet->setCellValue("E{$fila}", (float) $p->precio_compra);
-            $sheet->setCellValue("F{$fila}", (float) $p->precio_venta);
-            $sheet->setCellValue("G{$fila}", (float) ($p->precio_venta * $p->stock));
-            $fila++;
+            $estado = match ($p->estado_stock) {
+                'agotado' => 'Agotado',
+                'bajo' => 'Bajo',
+                default => 'Normal',
+            };
+
+            $filas[] = [
+                $p->codigo, $p->nombre, $p->modelo ?? '', $p->categoria ?? '', $p->ubicacion ?? '', $p->proveedor ?? '',
+                $p->stock, $p->stock_minimo, $estado,
+                $p->precio_compra, $p->precio_venta,
+                $p->precio_compra * $p->stock, $p->precio_venta * $p->stock,
+            ];
         }
-        $sheet->setCellValue("F{$fila}", 'VALOR TOTAL');
-        $sheet->setCellValue("G{$fila}", (float) $data['totalVenta']);
-        $sheet->getStyle("F{$fila}:G{$fila}")->getFont()->setBold(true);
-        $this->autoAjustarColumnas($sheet, 7);
 
-        // Segunda hoja: movimientos del mes, en el mismo archivo.
-        $hojaMov = $spreadsheet->createSheet();
-        $hojaMov->setTitle('Movimientos');
-        $hojaMov->fromArray(['Producto', 'Tipo', 'Cantidad', 'Referencia', 'Fecha'], null, 'A1');
-        $this->estiloEncabezado($hojaMov, 'A1:E1');
+        $siguiente = ExcelHelper::tabla(
+            $hoja,
+            $fila,
+            ['Código', 'Producto', 'Modelo', 'Categoría', 'Ubicación', 'Proveedor', 'Stock', 'Stock mínimo', 'Estado', 'Costo', 'Precio de venta', 'Valor a costo', 'Valor a venta'],
+            $filas,
+            $formatos
+        );
 
-        $fila = 2;
-        foreach ($data['movimientos'] as $mov) {
-            $hojaMov->setCellValue("A{$fila}", $mov->producto->nombre ?? '—');
-            $hojaMov->setCellValue("B{$fila}", $mov->tipo === 'entrada' ? 'Entrada' : 'Salida');
-            $hojaMov->setCellValue("C{$fila}", $mov->cantidad);
-            $hojaMov->setCellValue("D{$fila}", $mov->referencia ?? '—');
-            $hojaMov->setCellValue("E{$fila}", optional($mov->created_at)->format('d/m/Y H:i'));
-            $fila++;
+        ExcelHelper::filaTotales($hoja, $siguiente, [
+            'TOTAL', count($filas) . ' productos', '', '', '', '', $data['productos']->sum('stock'), '', '', '', '', $data['totalCompra'], $data['totalVenta'],
+        ], $formatos, 13);
+
+        $hojaMov = ExcelHelper::hojaNueva($libro, 'Movimientos del mes');
+        $fila = $this->cabecera($hojaMov, 'Movimientos de inventario', $periodo, 6);
+
+        $filasMov = [];
+        foreach ($data['movimientos']->sortBy('created_at') as $mov) {
+            $filasMov[] = [
+                $mov->created_at,
+                $mov->producto->codigo ?? '',
+                $mov->producto->nombre ?? '—',
+                match ($mov->tipo) { 'entrada' => 'Entrada', 'salida' => 'Salida', default => 'Ajuste' },
+                $mov->tipo === 'salida' ? -abs($mov->cantidad) : $mov->cantidad,
+                $mov->referencia ?? '',
+            ];
         }
-        $this->autoAjustarColumnas($hojaMov, 5);
 
-        $spreadsheet->setActiveSheetIndex(0);
+        ExcelHelper::tabla($hojaMov, $fila, ['Fecha', 'Código', 'Producto', 'Tipo', 'Cantidad', 'Referencia'], $filasMov, ['fechahora', 'texto', 'texto', 'texto', 'entero', 'texto']);
+
+        return $libro;
     }
 
-    private function hojaAnual(Spreadsheet $spreadsheet, int $anio): void
+    private function libroAnual(int $anio): Spreadsheet
     {
         $data = $this->reporteService->generarResumenAnual($anio);
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Resumen anual');
-        $sheet->fromArray(
-            ['Mes', 'Ventas (#)', 'Ingresos ventas', 'Reparaciones (#)', 'Ingresos reparaciones', 'Total mes'],
-            null,
-            'A1'
-        );
-        $this->estiloEncabezado($sheet, 'A1:F1');
+        [$libro, $hoja] = ExcelHelper::nuevoLibro('Resumen anual');
+        $fila = $this->cabecera($hoja, "Resumen anual {$anio}", 'Ventas y reparaciones mes a mes', 6);
 
-        $fila = 2;
+        $formatos = ['texto', 'entero', 'dinero', 'entero', 'dinero', 'dinero'];
+        $filas = [];
+
         foreach ($data['resumen'] as $m) {
-            $sheet->setCellValue("A{$fila}", $m['mes']);
-            $sheet->setCellValue("B{$fila}", $m['ventas_count']);
-            $sheet->setCellValue("C{$fila}", (float) $m['ventas_total']);
-            $sheet->setCellValue("D{$fila}", $m['rep_count']);
-            $sheet->setCellValue("E{$fila}", (float) $m['rep_total']);
-            $sheet->setCellValue("F{$fila}", (float) $m['total_mes']);
-            $fila++;
+            $filas[] = [$m['mes'], $m['ventas_count'], $m['ventas_total'], $m['rep_count'], $m['rep_total'], $m['total_mes']];
         }
 
-        $sheet->setCellValue("A{$fila}", 'TOTAL AÑO');
-        $sheet->setCellValue("C{$fila}", (float) $data['totalAnioVentas']);
-        $sheet->setCellValue("E{$fila}", (float) $data['totalAnioRep']);
-        $sheet->setCellValue("F{$fila}", (float) $data['totalAnio']);
-        $sheet->getStyle("A{$fila}:F{$fila}")->getFont()->setBold(true);
+        $siguiente = ExcelHelper::tabla($hoja, $fila, ['Mes', 'Ventas (#)', 'Ingresos por ventas', 'Reparaciones (#)', 'Ingresos por reparaciones', 'Total del mes'], $filas, $formatos, false);
 
-        $this->autoAjustarColumnas($sheet, 6);
+        ExcelHelper::filaTotales($hoja, $siguiente, [
+            'TOTAL AÑO', array_sum(array_column($filas, 1)), $data['totalAnioVentas'], array_sum(array_column($filas, 3)), $data['totalAnioRep'], $data['totalAnio'],
+        ], $formatos, 6);
+
+        return $libro;
     }
 }

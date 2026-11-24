@@ -1,644 +1,468 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard')
+@section('title', 'Panel general')
+@section('page-icon', 'speedometer2')
+@section('page-title', 'Panel general')
+@section('page-subtitle')
+    {{ ucfirst(\Carbon\Carbon::now()->locale('es')->isoFormat('dddd D [de] MMMM [de] YYYY')) }}
+@endsection
 
-@push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-@endpush
-
-@push('styles')
-    <style>
-        :root {
-            --primary: #2563eb;
-            --success: #16a34a;
-            --warning: #ea580c;
-            --danger: #dc2626;
-            --info: #0891b2;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-900: #111827;
-        }
-
-        body {
-            background: linear-gradient(135deg, #f0f4ff 0%, #f9fafb 100%);
-            min-height: 100vh;
-        }
-
-        /* ============================================
-           MAIN LAYOUT
-           ============================================ */
-        .dashboard-container {
-            padding: 0;
-            max-width: 100%;
-        }
-
-        /* ============================================
-           HEADER
-           ============================================ */
-        .dashboard-header {
-            background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 32px;
-            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.15);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .dashboard-header-title {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .dashboard-header-title i {
-            font-size: 2.5rem;
-        }
-
-        .dashboard-header h1 {
-            margin: 0;
-            font-size: 2rem;
-            font-weight: 700;
-        }
-
-        .dashboard-header-subtitle {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
-        .dashboard-header-date {
-            font-size: 0.95rem;
-            opacity: 0.85;
-        }
-
-        /* ============================================
-           KPI GRID
-           ============================================ */
-        .kpi-section {
-            margin-bottom: 32px;
-        }
-
-        .section-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--gray-900);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title i {
-            font-size: 1.5rem;
-            min-width: 32px;
-        }
-
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-        }
-
-        .kpi-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            border-left: 4px solid;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .kpi-card.blue { border-left-color: var(--primary); }
-        .kpi-card.success { border-left-color: var(--success); }
-        .kpi-card.warning { border-left-color: var(--warning); }
-        .kpi-card.info { border-left-color: var(--info); }
-        .kpi-card.danger { border-left-color: var(--danger); }
-
-        .kpi-label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: var(--gray-600);
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .kpi-value {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--gray-900);
-            margin-bottom: 4px;
-            line-height: 1.15;
-        }
-
-        .kpi-subtext {
-            font-size: 0.85rem;
-            color: var(--gray-600);
-        }
-
-        /* ============================================
-           CARD SECTION
-           ============================================ */
-        .card-section {
-            background: white;
-            border-radius: 12px;
-            border: 1px solid var(--gray-200);
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-            margin-bottom: 20px;
-        }
-
-        .card-header {
-            background: var(--gray-50);
-            border-bottom: 1px solid var(--gray-200);
-            padding: 18px 20px;
-            font-weight: 700;
-            color: var(--gray-900);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .card-body {
-            padding: 20px;
-        }
-
-        /* ============================================
-           TABLE STYLES
-           ============================================ */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 0;
-        }
-
-        .table th {
-            background: var(--gray-100);
-            border-bottom: 2px solid var(--gray-200);
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--gray-700);
-            text-transform: uppercase;
-        }
-
-        .table td {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .table tbody tr:hover {
-            background: var(--gray-50);
-        }
-
-        .table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* ============================================
-           BADGE & STATUS
-           ============================================ */
-        .badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .badge-info { background: #dbeafe; color: var(--primary); }
-        .badge-success { background: #dcfce7; color: var(--success); }
-        .badge-warning { background: #fed7aa; color: var(--warning); }
-        .badge-danger { background: #fee2e2; color: var(--danger); }
-        .badge-stock-critical { background: #fee2e2; color: var(--danger); }
-
-        /* ============================================
-           GRID LAYOUT FOR SECTIONS
-           ============================================ */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-            gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .grid-2 { grid-template-columns: 1fr; }
-
-            .dashboard-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .kpi-grid {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-        }
-
-        /* ============================================
-           ALERT BOX
-           ============================================ */
-        .alert-box {
-            padding: 16px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .alert-info {
-            background: #dbeafe;
-            color: var(--primary);
-            border-left: 4px solid var(--primary);
-        }
-
-        /* ============================================
-           STAT ITEM
-           ============================================ */
-        .stat-item {
-            padding: 12px 0;
-            border-bottom: 1px solid var(--gray-200);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .stat-item:last-child { border-bottom: none; }
-
-        .stat-label { color: var(--gray-600); font-weight: 500; }
-
-        .stat-value {
-            font-weight: 700;
-            color: var(--gray-900);
-            font-size: 1.1rem;
-        }
-    </style>
-@endpush
+@section('page-actions')
+    <a href="{{ route('ventas.create') }}" class="btn btn-primary">
+        <i class="bi bi-cart-plus"></i> Nueva venta
+    </a>
+    <a href="{{ route('reparaciones.create') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-wrench-adjustable"></i> Nueva orden
+    </a>
+    <a href="{{ route('inventario.productos.create') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-box-seam"></i> Nuevo producto
+    </a>
+@endsection
 
 @section('content')
-    <div class="dashboard-container">
 
-        <!-- HEADER -->
-        <div class="dashboard-header">
-            <div class="dashboard-header-title">
-                <i class="bi bi-speedometer2"></i>
-                <div>
-                    <h1>Dashboard Gerencial</h1>
-                    <small class="dashboard-header-subtitle">Sistema de Gestión - Taller</small>
-                </div>
+    @php
+        $hora = (int) now()->format('G');
+        $saludo = $hora < 12 ? 'Buenos días' : ($hora < 19 ? 'Buenas tardes' : 'Buenas noches');
+        $mesActual = ucfirst(\Carbon\Carbon::now()->locale('es')->isoFormat('MMMM'));
+
+        $ventasMes = $ventasMes ?? 0;
+        $repMes = $repMes ?? 0;
+        $ingVentasMes = (float) ($ingVentasMes ?? 0);
+        $ingRepMes = (float) ($ingRepMes ?? 0);
+        $ingresosMes = $ingVentasMes + $ingRepMes;
+        $ingresosMesAnt = (float) ($ventasMesAnt ?? 0) + (float) ($ingRepMesAnt ?? 0);
+
+        $variacion = function ($actual, $anterior) {
+            return $anterior > 0 ? (int) round((($actual - $anterior) / $anterior) * 100) : null;
+        };
+
+        $vTotal = $variacion($ingresosMes, $ingresosMesAnt);
+        $vVentas = $variacion($ingVentasMes, (float) ($ventasMesAnt ?? 0));
+        $vRep = $variacion($ingRepMes, (float) ($ingRepMesAnt ?? 0));
+
+        $totalCero = (int) ($totalCriticos ?? 0);
+        $totalBajos = (int) ($totalBajos ?? 0);
+        $totalProductos = (int) ($totalProductos ?? 0);
+        $normales = max(0, $totalProductos - $totalCero - $totalBajos);
+
+        $vCompra = (float) ($valorCompra ?? 0);
+        $vVenta = (float) ($valorVenta ?? 0);
+        $margen = $vCompra > 0 ? round((($vVenta - $vCompra) / $vCompra) * 100, 1) : 0;
+
+        $porReponer = $porReponer ?? collect();
+        $sinRot = $sinRotacion ?? (object) ['cantidad' => 0, 'valor' => 0];
+        $antiguas = $ordenesAntiguas ?? collect();
+        $antiguasTotal = (int) ($ordenesAntiguasTotal ?? 0);
+        $diasAntigua = (int) ($diasOrdenAntigua ?? 15);
+
+        $topHist = $topProductosHistorico ?? collect();
+        $tieneTop = is_countable($topHist) && count($topHist) > 0;
+        $maxTop = $tieneTop ? max(1, collect($topHist)->max('total_vendido')) : 1;
+
+        $tieneProductividad = is_countable($productividad ?? null) && count($productividad) > 0;
+        $tieneProductividad3m = is_countable($productividad3m ?? null) && count($productividad3m) > 0;
+
+        $deltaHtml = function ($valor) {
+            if ($valor === null) {
+                return '<span class="delta">Sin datos del mes anterior</span>';
+            }
+            $clase = $valor > 0 ? 'up' : ($valor < 0 ? 'down' : '');
+            $signo = $valor > 0 ? '▲ +' : ($valor < 0 ? '▼ −' : '= ');
+
+            return '<span class="delta ' . $clase . '">' . $signo . abs($valor) . ' %</span> vs. mismo período del mes anterior';
+        };
+    @endphp
+
+    <section class="dash-hero">
+        <div class="dash-hero-texto">
+            <span class="dash-hero-saludo">{{ $saludo }}</span>
+            <h2>Así va {{ $mesActual }}</h2>
+            <p>
+                @if (($ventasHoy ?? 0) > 0 || ($entregasHoy ?? 0) > 0)
+                    Hoy van <strong>{{ $ventasHoy ?? 0 }} {{ ($ventasHoy ?? 0) == 1 ? 'venta' : 'ventas' }}</strong>
+                    por ${{ number_format($ingVentasHoy ?? 0, 0, ',', '.') }}
+                    y <strong>{{ $entregasHoy ?? 0 }} {{ ($entregasHoy ?? 0) == 1 ? 'máquina entregada' : 'máquinas entregadas' }}</strong>.
+                @else
+                    Todavía no hay ventas ni entregas registradas hoy.
+                @endif
+            </p>
+        </div>
+
+        <div class="dash-hero-datos">
+            <div>
+                <span>Ingresos del mes</span>
+                <strong>${{ number_format($ingresosMes, 0, ',', '.') }}</strong>
             </div>
-            <div class="dashboard-header-date">
-                <i class="bi bi-calendar3"></i>
-                {{ \Carbon\Carbon::now()->locale('es')->isoFormat('D [de] MMMM [de] YYYY') }}
+            <div>
+                <span>Máquinas en el taller</span>
+                <strong>{{ $repActivas ?? 0 }}</strong>
+            </div>
+            <div>
+                <span>Productos por reponer</span>
+                <strong>{{ $totalCero + $totalBajos }}</strong>
+            </div>
+        </div>
+    </section>
+
+    <div class="kpi-grid">
+        <div class="kpi">
+            <div class="kpi-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-label">Ingresos del mes</div>
+                <div class="kpi-value">${{ number_format($ingresosMes, 0, ',', '.') }}</div>
+                <div class="kpi-sub">{!! $deltaHtml($vTotal) !!}</div>
             </div>
         </div>
 
-        <!-- ============================================
-             KPI PRINCIPALES
-             ============================================ -->
-        @php
-            $criticos = $criticos ?? collect();
-            $countCriticos = is_countable($criticos) ? count($criticos) : 0;
-        @endphp
-        <div class="kpi-section">
-            <div class="kpi-grid">
-                <div class="kpi-card blue">
-                    <div class="kpi-label"><i class="bi bi-cash-coin"></i> Ventas del Mes</div>
-                    <div class="kpi-value">${{ number_format($ingVentasMes ?? 0, 0, ',', '.') }}</div>
-                    <div class="kpi-subtext">{{ $ventasMes ?? 0 }} venta(s) registrada(s)</div>
-                </div>
-                <div class="kpi-card success">
-                    <div class="kpi-label"><i class="bi bi-wrench-adjustable"></i> Reparaciones del Mes</div>
-                    <div class="kpi-value">${{ number_format($ingRepMes ?? 0, 0, ',', '.') }}</div>
-                    <div class="kpi-subtext">{{ $repMes ?? 0 }} reparación(es) entregada(s)</div>
-                </div>
-                <div class="kpi-card warning">
-                    <div class="kpi-label"><i class="bi bi-hourglass-split"></i> Reparaciones Activas</div>
-                    <div class="kpi-value">{{ $repActivas ?? 0 }}</div>
-                    <div class="kpi-subtext">Pendientes + en reparación</div>
-                </div>
-                <div class="kpi-card danger">
-                    <div class="kpi-label"><i class="bi bi-exclamation-triangle"></i> Stock en Cero</div>
-                    <div class="kpi-value">{{ $countCriticos }}</div>
-                    <div class="kpi-subtext">
-                        {{ $countCriticos > 0 ? 'Requieren reabastecimiento' : 'Sin productos en cero' }}
-                    </div>
-                </div>
+        <div class="kpi kpi-green">
+            <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-label">Ventas de productos</div>
+                <div class="kpi-value">${{ number_format($ingVentasMes, 0, ',', '.') }}</div>
+                <div class="kpi-sub">{{ $ventasMes }} {{ $ventasMes == 1 ? 'venta' : 'ventas' }} · {!! $deltaHtml($vVentas) !!}</div>
             </div>
         </div>
 
-        <!-- ============================================
-             GRÁFICA VENTAS VS REPARACIONES (12 MESES)
-             ============================================ -->
-        <div class="card-section" style="margin-bottom: 32px;">
+        <div class="kpi kpi-violet">
+            <div class="kpi-icon"><i class="bi bi-wrench-adjustable"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-label">Reparaciones entregadas</div>
+                <div class="kpi-value">${{ number_format($ingRepMes, 0, ',', '.') }}</div>
+                <div class="kpi-sub">{{ $repMes }} {{ $repMes == 1 ? 'máquina' : 'máquinas' }} · {!! $deltaHtml($vRep) !!}</div>
+            </div>
+        </div>
+
+        <div class="kpi kpi-amber">
+            <div class="kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-label">En el taller ahora</div>
+                <div class="kpi-value">{{ $repActivas ?? 0 }}</div>
+                <div class="kpi-sub">
+                    @if ($antiguasTotal > 0)
+                        <span class="delta down">{{ $antiguasTotal }} con más de {{ $diasAntigua }} días</span>
+                    @else
+                        Ninguna lleva más de {{ $diasAntigua }} días
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-fila dash-fila-2-1">
+        <div class="card">
             <div class="card-header">
-                <i class="bi bi-bar-chart-line"></i>Ventas vs Reparaciones - Últimos 12 Meses
+                <span><i class="bi bi-graph-up"></i> Ventas y reparaciones de los últimos 12 meses</span>
             </div>
-            <div class="card-body" style="position: relative; height: 340px;">
+            <div class="card-body chart-box">
                 <canvas id="grafica12meses"></canvas>
             </div>
         </div>
 
-        <!-- ============================================
-             INVENTARIO vs TOP PRODUCTOS (2 COLUMNAS)
-             ============================================ -->
-        <div class="grid-2" style="margin-bottom: 20px;">
-
-            <!-- INVENTARIO -->
-            <div>
-                <div class="card-section">
-                    <div class="card-header">
-                        <i class="bi bi-calculator"></i>Valor Total del Inventario
-                    </div>
-                    <div class="card-body">
-                        @php
-                            $vCompra = $valorCompra ?? 0;
-                            $vVenta = $valorVenta ?? 0;
-                            $margen = ($vCompra > 0) ? round((($vVenta - $vCompra) / $vCompra) * 100, 2) : 0;
-                        @endphp
-                        <div class="stat-item">
-                            <span class="stat-label">Valor Compra</span>
-                            <span class="stat-value">${{ number_format($vCompra, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Valor Venta</span>
-                            <span class="stat-value" style="color: var(--success);">${{ number_format($vVenta, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Margen Ganancia</span>
-                            <span class="stat-value" style="color: var(--primary);">{{ $margen }}%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ALERTAS DE STOCK -->
-                <div class="card-section" style="margin-top: 20px;">
-                    <div class="card-header">
-                        <i class="bi bi-exclamation-circle-fill"></i>Productos en Stock = 0
-                    </div>
-                    <div class="card-body">
-                        @if($countCriticos > 0)
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                @foreach($criticos as $prod)
-                                    <span class="badge badge-stock-critical" style="font-size: 0.75rem; padding: 8px 10px;">
-                                        <i class="bi bi-exclamation-circle-fill"></i> {{ $prod->nombre ?? 'Desconocido' }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        @else
-                            <div class="alert-box alert-info">
-                                <i class="bi bi-check-circle"></i>
-                                <span>Sin productos en stock cero</span>
-                            </div>
-                        @endif
-                    </div>
-                </div>
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-exclamation-triangle"></i> Requiere atención</span>
             </div>
-
-            <!-- TOP 10 PRODUCTOS VENDIDOS (HISTÓRICO) -->
-            <div class="card-section">
-                <div class="card-header">
-                    <i class="bi bi-trophy"></i>Top 10 Productos Vendidos (Histórico)
-                </div>
-                <div class="card-body">
-                    @php
-                        $topHist = $topProductosHistorico ?? collect();
-                        $tieneTop = is_countable($topHist) && count($topHist) > 0;
-                    @endphp
-                    @if($tieneTop)
-                        <div class="table-container">
-                            <table class="table" style="font-size: 0.9rem;">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 60%;">Producto</th>
-                                        <th class="text-center">Unidades</th>
-                                        <th class="text-end">Ingresos</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($topHist as $idx => $m)
-                                        <tr>
-                                            <td>
-                                                <strong>#{{ $idx + 1 }}</strong> {{ substr($m->nombre ?? 'Desconocido', 0, 40) }}
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="badge badge-info">{{ $m->total_vendido ?? 0 }}</span>
-                                            </td>
-                                            <td class="text-end">
-                                                <strong>${{ number_format($m->total_ingresos ?? 0, 0, ',', '.') }}</strong>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="alert-box alert-info">
-                            <i class="bi bi-info-circle"></i>
-                            <span>Sin datos disponibles</span>
-                        </div>
-                    @endif
-                </div>
-            </div>
-
+            <ul class="atencion-lista">
+                <li>
+                    <a href="{{ route('inventario.index', ['filtro_stock' => 'critico']) }}" class="atencion-item {{ $totalCero > 0 ? 'rojo' : 'ok' }}">
+                        <span class="atencion-icono"><i class="bi bi-{{ $totalCero > 0 ? 'exclamation-octagon' : 'check-circle-fill' }}"></i></span>
+                        <span class="atencion-texto">
+                            <strong>{{ $totalCero > 0 ? $totalCero . ($totalCero == 1 ? ' producto agotado' : ' productos agotados') : 'Sin productos agotados' }}</strong>
+                            <small>{{ $totalCero > 0 ? 'No se pueden vender hasta que ingresen' : 'Todo tiene existencias' }}</small>
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('inventario.reposicion') }}" class="atencion-item {{ $totalBajos > 0 ? 'ambar' : 'ok' }}">
+                        <span class="atencion-icono"><i class="bi bi-{{ $totalBajos > 0 ? 'exclamation-circle' : 'check-circle-fill' }}"></i></span>
+                        <span class="atencion-texto">
+                            <strong>{{ $totalBajos > 0 ? $totalBajos . ($totalBajos == 1 ? ' producto con stock bajo' : ' productos con stock bajo') : 'Stock al día' }}</strong>
+                            <small>{{ $totalBajos > 0 ? 'En o por debajo de su mínimo · ver lista de compra' : 'Ningún producto bajo su mínimo' }}</small>
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('reparaciones.index', ['antiguedad' => $diasAntigua]) }}" class="atencion-item {{ $antiguasTotal > 0 ? 'ambar' : 'ok' }}">
+                        <span class="atencion-icono"><i class="bi bi-{{ $antiguasTotal > 0 ? 'hourglass-split' : 'check-circle-fill' }}"></i></span>
+                        <span class="atencion-texto">
+                            <strong>{{ $antiguasTotal > 0 ? $antiguasTotal . ($antiguasTotal == 1 ? ' máquina' : ' máquinas') . " con más de {$diasAntigua} días" : 'Taller al día' }}</strong>
+                            <small>{{ $antiguasTotal > 0 ? 'Siguen sin entregarse · conviene avisar al cliente' : 'Ninguna máquina lleva demasiado tiempo' }}</small>
+                        </span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ route('inventario.index', ['filtro_stock' => 'sin_rotacion']) }}" class="atencion-item {{ $sinRot->cantidad > 0 ? 'azul' : 'ok' }}">
+                        <span class="atencion-icono"><i class="bi bi-{{ $sinRot->cantidad > 0 ? 'clock-history' : 'check-circle-fill' }}"></i></span>
+                        <span class="atencion-texto">
+                            <strong>{{ $sinRot->cantidad > 0 ? $sinRot->cantidad . ($sinRot->cantidad == 1 ? ' producto' : ' productos') . ' sin ventas en 90 días' : 'Inventario con movimiento' }}</strong>
+                            <small>{{ $sinRot->cantidad > 0 ? '$' . number_format($sinRot->valor, 0, ',', '.') . ' en costo inmovilizado' : 'Todo lo que hay en bodega ha rotado' }}</small>
+                        </span>
+                    </a>
+                </li>
+            </ul>
         </div>
-
-        <!-- ============================================
-             PRODUCTIVIDAD DE TÉCNICOS
-             ============================================ -->
-        <div class="card-section" style="margin-bottom: 32px;">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span><i class="bi bi-people"></i> Productividad de Técnicos</span>
-                <div class="d-flex gap-2">
-                    <button type="button" id="btn-periodo-historico" class="btn btn-sm btn-primary"
-                        onclick="cambiarPeriodoTecnicos('historico')">
-                        Histórico
-                    </button>
-                    <button type="button" id="btn-periodo-3m" class="btn btn-sm btn-outline-primary"
-                        onclick="cambiarPeriodoTecnicos('3m')">
-                        Últimos 3 meses
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                @php
-                    $tieneProductividad = is_countable($productividad ?? null) && count($productividad) > 0;
-                    $tieneProductividad3m = is_countable($productividad3m ?? null) && count($productividad3m) > 0;
-                @endphp
-
-                {{-- HISTÓRICO (visible por defecto) --}}
-                <div id="panel-tec-historico">
-                    @if($tieneProductividad)
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Técnico</th>
-                                        <th class="text-center">Entregadas</th>
-                                        <th class="text-center">Activas</th>
-                                        <th class="text-end">Ingresos</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-tec-historico">
-                                    @foreach($productividad as $idx => $tec)
-                                        <tr>
-                                            <td><strong>{{ $idx + 1 }}.</strong> {{ $tec->nombre ?? 'Desconocido' }}</td>
-                                            <td class="text-center"><span class="badge badge-success">{{ $tec->entregadas ?? 0 }}</span></td>
-                                            <td class="text-center"><span class="badge badge-info">{{ $tec->activas ?? 0 }}</span></td>
-                                            <td class="text-end"><strong>${{ number_format($tec->ingresos ?? 0, 0, ',', '.') }}</strong></td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="dash-tec-pag-historico" class="dash-tec-pag" style="display:none;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--gray-200);">
-                            <span class="dash-tec-info" style="font-size:0.82rem;color:var(--gray-600);"></span>
-                            <div style="display:flex;gap:6px;">
-                                <button class="dash-tec-prev btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:4px 12px;font-size:0.82rem;">‹ Anterior</button>
-                                <span class="dash-tec-num" style="align-self:center;font-size:0.82rem;color:var(--gray-600);padding:0 8px;"></span>
-                                <button class="dash-tec-next btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:4px 12px;font-size:0.82rem;">Siguiente ›</button>
-                            </div>
-                        </div>
-                    @else
-                        <div class="alert-box alert-info">
-                            <i class="bi bi-info-circle"></i>
-                            <span>Sin datos de técnicos disponibles</span>
-                        </div>
-                    @endif
-                </div>
-
-                {{-- ÚLTIMOS 3 MESES (oculto por defecto) --}}
-                <div id="panel-tec-3m" class="d-none">
-                    @if($tieneProductividad3m)
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Técnico</th>
-                                        <th class="text-center">Entregadas</th>
-                                        <th class="text-center">Activas</th>
-                                        <th class="text-end">Ingresos</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbody-tec-3m">
-                                    @foreach($productividad3m as $idx => $tec)
-                                        <tr>
-                                            <td><strong>{{ $idx + 1 }}.</strong> {{ $tec->nombre ?? 'Desconocido' }}</td>
-                                            <td class="text-center"><span class="badge badge-success">{{ $tec->entregadas ?? 0 }}</span></td>
-                                            <td class="text-center"><span class="badge badge-info">{{ $tec->activas ?? 0 }}</span></td>
-                                            <td class="text-end"><strong>${{ number_format($tec->ingresos ?? 0, 0, ',', '.') }}</strong></td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div id="dash-tec-pag-3m" class="dash-tec-pag" style="display:none;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--gray-200);">
-                            <span class="dash-tec-info" style="font-size:0.82rem;color:var(--gray-600);"></span>
-                            <div style="display:flex;gap:6px;">
-                                <button class="dash-tec-prev btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:4px 12px;font-size:0.82rem;">‹ Anterior</button>
-                                <span class="dash-tec-num" style="align-self:center;font-size:0.82rem;color:var(--gray-600);padding:0 8px;"></span>
-                                <button class="dash-tec-next btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:4px 12px;font-size:0.82rem;">Siguiente ›</button>
-                            </div>
-                        </div>
-                    @else
-                        <div class="alert-box alert-info">
-                            <i class="bi bi-info-circle"></i>
-                            <span>Sin entregas registradas en los últimos 3 meses</span>
-                        </div>
-                    @endif
-                </div>
-
-                <p class="mb-0 mt-2" style="font-size:0.78rem;color:var(--gray-600);">
-                    <i class="bi bi-info-circle"></i>
-                    "Activas" siempre muestra el total actual de órdenes pendientes o en reparación, sin importar el período elegido.
-                </p>
-            </div>
-        </div>
-
-        <!-- FOOTER -->
-        <div style="text-align: center; color: var(--gray-600); font-size: 0.85rem; padding-top: 20px; border-top: 1px solid var(--gray-200);">
-            <p>Última actualización: {{ now()->format('d/m/Y H:i:s') }}</p>
-        </div>
-
     </div>
 
+    <div class="dash-fila dash-fila-1-1">
+        <div class="card">
+            <div class="card-header">
+                <span><i class="bi bi-calculator"></i> Valor del inventario</span>
+                <a href="{{ route('inventario.index') }}" class="card-enlace">Ver inventario</a>
+            </div>
+            <div class="card-body">
+                <ul class="stat-list">
+                    <li class="stat-item">
+                        <span class="stat-label">A precio de compra</span>
+                        <span class="stat-value">${{ number_format($vCompra, 0, ',', '.') }}</span>
+                    </li>
+                    <li class="stat-item">
+                        <span class="stat-label">A precio de venta</span>
+                        <span class="stat-value text-success">${{ number_format($vVenta, 0, ',', '.') }}</span>
+                    </li>
+                    <li class="stat-item">
+                        <span class="stat-label">Margen potencial</span>
+                        <span class="stat-value text-primary">{{ number_format($margen, 1, ',', '.') }}%</span>
+                    </li>
+                </ul>
+
+                <div class="dist-titulo">Estado de los {{ number_format($totalProductos, 0, ',', '.') }} productos activos</div>
+                @if ($totalProductos > 0)
+                    <div class="dist-barra" role="img" aria-label="{{ $normales }} normales, {{ $totalBajos }} con stock bajo, {{ $totalCero }} agotados">
+                        @if ($normales > 0)<span class="dist-ok" style="flex: {{ $normales }}"></span>@endif
+                        @if ($totalBajos > 0)<span class="dist-bajo" style="flex: {{ $totalBajos }}"></span>@endif
+                        @if ($totalCero > 0)<span class="dist-cero" style="flex: {{ $totalCero }}"></span>@endif
+                    </div>
+                    <div class="dist-leyenda">
+                        <span><i class="dist-punto dist-ok"></i> Normal <strong>{{ $normales }}</strong></span>
+                        <span><i class="dist-punto dist-bajo"></i> Stock bajo <strong>{{ $totalBajos }}</strong></span>
+                        <span><i class="dist-punto dist-cero"></i> Agotados <strong>{{ $totalCero }}</strong></span>
+                    </div>
+                @else
+                    <div class="cell-sub">Aún no hay productos registrados.</div>
+                @endif
+            </div>
+        </div>
+
+        <div class="card card-flat">
+            <div class="card-header">
+                <span><i class="bi bi-cart-plus"></i> Por reponer</span>
+                <span class="count-pill {{ ($totalCero + $totalBajos) > 0 ? 'has-items' : '' }}" title="Agotados y con stock bajo">{{ $totalCero + $totalBajos }}</span>
+            </div>
+
+            @if (count($porReponer) > 0)
+                <ul class="stock-list">
+                    @foreach ($porReponer as $prod)
+                        <li class="stock-row">
+                            <span class="stock-dot {{ $prod->stock <= 0 ? '' : 'bajo' }}" aria-hidden="true"></span>
+                            <span class="stock-name" title="{{ $prod->nombre }}">{{ $prod->nombre }}</span>
+                            <span class="stock-code">{{ $prod->codigo }}</span>
+                            @if ($prod->stock <= 0)
+                                <span class="badge bg-danger">Agotado</span>
+                            @else
+                                <span class="badge bg-warning">{{ $prod->stock }} / mín. {{ $prod->stock_minimo }}</span>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
+                    <span>
+                        @if (($totalCero + $totalBajos) > count($porReponer))
+                            Mostrando {{ count($porReponer) }} de {{ $totalCero + $totalBajos }}
+                        @else
+                            {{ $totalCero + $totalBajos }} {{ ($totalCero + $totalBajos) == 1 ? 'producto' : 'productos' }}
+                        @endif
+                    </span>
+                    <a href="{{ route('inventario.reposicion') }}" class="fw-semibold">Ver lista de compra</a>
+                </div>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    <strong>Todo con existencias</strong>
+                    <span>Ningún producto está agotado ni por debajo de su mínimo.</span>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="dash-fila dash-fila-1-1">
+        <div class="card card-flat">
+            <div class="card-header">
+                <span><i class="bi bi-trophy"></i> Los 10 más vendidos</span>
+                <small>Histórico</small>
+            </div>
+
+            @if ($tieneTop)
+                <ul class="top-lista">
+                    @foreach ($topHist as $idx => $m)
+                        <li class="top-item">
+                            <span class="rank-chip {{ $idx < 3 ? 'rank-' . ($idx + 1) : '' }}">{{ $idx + 1 }}</span>
+                            <div class="top-cuerpo">
+                                <div class="top-linea">
+                                    <span class="cell-title" title="{{ $m->nombre }}">{{ \Illuminate\Support\Str::limit($m->nombre ?? 'Desconocido', 40) }}</span>
+                                    <span class="top-unidades">{{ $m->total_vendido ?? 0 }} u.</span>
+                                </div>
+                                <div class="top-barra"><span style="width: {{ round((($m->total_vendido ?? 0) / $maxTop) * 100) }}%"></span></div>
+                            </div>
+                            <span class="top-monto">${{ number_format($m->total_ingresos ?? 0, 0, ',', '.') }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-bar-chart"></i>
+                    <strong>Sin datos todavía</strong>
+                    <span>Aquí aparecerán los productos más vendidos.</span>
+                </div>
+            @endif
+        </div>
+
+        <div class="card card-flat">
+            <div class="card-header">
+                <span><i class="bi bi-hourglass-split"></i> Máquinas que llevan más tiempo en el taller</span>
+                <a href="{{ route('reparaciones.index', ['estado' => 'pendiente']) }}" class="card-enlace">Ver órdenes</a>
+            </div>
+
+            @if (count($antiguas) > 0)
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Orden</th>
+                                <th>Cliente y máquina</th>
+                                <th>Técnico</th>
+                                <th class="text-center">Días</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($antiguas as $o)
+                                <tr class="fila-estado {{ $o->dias >= $diasAntigua ? 'fila-agotado' : ($o->dias >= 7 ? 'fila-bajo' : '') }}">
+                                    <td class="cell-code">
+                                        <a href="{{ route('reparaciones.index', ['numero_orden' => $o->numero_orden]) }}">#{{ $o->numero_orden }}</a>
+                                    </td>
+                                    <td>
+                                        <div class="cell-title">{{ \Illuminate\Support\Str::limit($o->cliente, 30) }}</div>
+                                        <div class="cell-sub">{{ \Illuminate\Support\Str::limit($o->maquina !== '' ? $o->maquina : 'Sin descripción', 36) }}</div>
+                                    </td>
+                                    <td>{{ $o->tecnico ?: 'Sin asignar' }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {{ $o->dias >= $diasAntigua ? 'bg-danger' : ($o->dias >= 7 ? 'bg-warning' : 'bg-secondary') }}">{{ $o->dias }} {{ $o->dias == 1 ? 'día' : 'días' }}</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    <strong>No hay máquinas pendientes</strong>
+                    <span>Todo lo que ingresó al taller ya fue entregado.</span>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span><i class="bi bi-people"></i> Productividad de técnicos</span>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Período">
+                <button type="button" id="btn-periodo-historico" class="btn btn-primary"
+                    onclick="cambiarPeriodoTecnicos('historico')">Histórico</button>
+                <button type="button" id="btn-periodo-3m" class="btn btn-outline-primary"
+                    onclick="cambiarPeriodoTecnicos('3m')">Últimos 3 meses</button>
+            </div>
+        </div>
+
+        <div id="panel-tec-historico">
+            @if ($tieneProductividad)
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th class="col-rank">#</th>
+                                <th>Técnico</th>
+                                <th class="text-center">Entregadas</th>
+                                <th class="text-center">Activas</th>
+                                <th class="text-end">Ingresos</th>
+                            </tr>
+                        </thead>
+                        <tbody data-paginar="10">
+                            @foreach ($productividad as $idx => $tec)
+                                <tr>
+                                    <td><span class="rank-chip {{ $idx < 3 ? 'rank-' . ($idx + 1) : '' }}">{{ $idx + 1 }}</span></td>
+                                    <td class="cell-title">{{ $tec->nombre ?? 'Desconocido' }}</td>
+                                    <td class="text-center"><span class="badge bg-success">{{ $tec->entregadas ?? 0 }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ $tec->activas ?? 0 }}</span></td>
+                                    <td class="text-end fw-semibold">${{ number_format($tec->ingresos ?? 0, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-person-x"></i>
+                    <strong>Sin datos de técnicos</strong>
+                </div>
+            @endif
+        </div>
+
+        <div id="panel-tec-3m" class="d-none">
+            @if ($tieneProductividad3m)
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th class="col-rank">#</th>
+                                <th>Técnico</th>
+                                <th class="text-center">Entregadas</th>
+                                <th class="text-center">Activas</th>
+                                <th class="text-end">Ingresos</th>
+                            </tr>
+                        </thead>
+                        <tbody data-paginar="10">
+                            @foreach ($productividad3m as $idx => $tec)
+                                <tr>
+                                    <td><span class="rank-chip {{ $idx < 3 ? 'rank-' . ($idx + 1) : '' }}">{{ $idx + 1 }}</span></td>
+                                    <td class="cell-title">{{ $tec->nombre ?? 'Desconocido' }}</td>
+                                    <td class="text-center"><span class="badge bg-success">{{ $tec->entregadas ?? 0 }}</span></td>
+                                    <td class="text-center"><span class="badge bg-info">{{ $tec->activas ?? 0 }}</span></td>
+                                    <td class="text-end fw-semibold">${{ number_format($tec->ingresos ?? 0, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <strong>Sin entregas en los últimos 3 meses</strong>
+                </div>
+            @endif
+        </div>
+
+        <div class="card-footer">
+            <i class="bi bi-info-circle"></i>
+            «Activas» siempre muestra el total actual de órdenes pendientes o en reparación, sin importar el período elegido.
+        </div>
+    </div>
+
+    <p class="text-center text-muted small mb-0">Última actualización: {{ now()->format('d/m/Y H:i') }}</p>
+
+@endsection
+
+@push('scripts')
+    <script src="{{ asset('vendor/chartjs/chart.umd.js') }}" defer></script>
     <script>
-        // Paginación de técnicos en dashboard (10 por página).
-        // Reutilizable: se llama una vez por cada tabla (histórico y 3 meses).
-        function iniciarPaginacionTecnicos(tbodyId, pagContainer) {
-            const tbody = document.getElementById(tbodyId);
-            if (!tbody || !pagContainer) return;
-
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const PAGE_SIZE = 10;
-            if (rows.length <= PAGE_SIZE) return;
-
-            let page = 1;
-            const total = rows.length;
-            const pages = Math.ceil(total / PAGE_SIZE);
-            const info = pagContainer.querySelector('.dash-tec-info');
-            const num = pagContainer.querySelector('.dash-tec-num');
-            const prev = pagContainer.querySelector('.dash-tec-prev');
-            const next = pagContainer.querySelector('.dash-tec-next');
-
-            pagContainer.style.display = 'flex';
-
-            function render() {
-                rows.forEach((r, i) => {
-                    r.style.display = (i >= (page - 1) * PAGE_SIZE && i < page * PAGE_SIZE) ? '' : 'none';
-                });
-                const desde = (page - 1) * PAGE_SIZE + 1;
-                const hasta = Math.min(page * PAGE_SIZE, total);
-                info.textContent = `Mostrando ${desde}–${hasta} de ${total} técnicos`;
-                num.textContent = `${page} / ${pages}`;
-                prev.disabled = page === 1;
-                next.disabled = page === pages;
-            }
-
-            prev.addEventListener('click', () => { if (page > 1) { page--; render(); } });
-            next.addEventListener('click', () => { if (page < pages) { page++; render(); } });
-            render();
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            iniciarPaginacionTecnicos('tbody-tec-historico', document.getElementById('dash-tec-pag-historico'));
-            iniciarPaginacionTecnicos('tbody-tec-3m', document.getElementById('dash-tec-pag-3m'));
-        });
-
-        // Alterna entre la vista histórica y la de últimos 3 meses de
-        // productividad de técnicos. Ambos conjuntos ya vienen cargados
-        // desde el servidor, así que el cambio es instantáneo (sin recargar
-        // la página ni hacer una petición nueva).
         function cambiarPeriodoTecnicos(periodo) {
-            const panelHistorico = document.getElementById('panel-tec-historico');
-            const panel3m = document.getElementById('panel-tec-3m');
-            const btnHistorico = document.getElementById('btn-periodo-historico');
-            const btn3m = document.getElementById('btn-periodo-3m');
-
             const mostrarHistorico = periodo === 'historico';
 
-            panelHistorico.classList.toggle('d-none', !mostrarHistorico);
-            panel3m.classList.toggle('d-none', mostrarHistorico);
+            document.getElementById('panel-tec-historico').classList.toggle('d-none', !mostrarHistorico);
+            document.getElementById('panel-tec-3m').classList.toggle('d-none', mostrarHistorico);
+
+            const btnHistorico = document.getElementById('btn-periodo-historico');
+            const btn3m = document.getElementById('btn-periodo-3m');
 
             btnHistorico.classList.toggle('btn-primary', mostrarHistorico);
             btnHistorico.classList.toggle('btn-outline-primary', !mostrarHistorico);
@@ -646,124 +470,104 @@
             btn3m.classList.toggle('btn-outline-primary', mostrarHistorico);
         }
 
-        // Gráfico Ventas vs Reparaciones - últimos 12 meses (Line Chart).
-        document.addEventListener('DOMContentLoaded', function () {
-            const grafica12meses = @json($grafica12meses ?? collect());
+        window.addEventListener('load', function () {
+            const datos = @json($grafica12meses ?? collect());
+            const lienzo = document.getElementById('grafica12meses');
 
-            const ctx = document.getElementById('grafica12meses');
-            if (!ctx) return;
+            if (!lienzo || !datos || datos.length === 0 || typeof Chart === 'undefined') return;
 
-            const chartCtx = ctx.getContext('2d');
+            const ctx = lienzo.getContext('2d');
+            const base = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+            Chart.defaults.font.size = Math.round(base * 0.8);
 
-            if (grafica12meses && grafica12meses.length > 0) {
-                const meses = grafica12meses.map(d => d.mes);
-                const ventas = grafica12meses.map(d => parseFloat(d.ventas || 0));
-                const reparaciones = grafica12meses.map(d => parseFloat(d.reparaciones || 0));
+            const degradado = function (rgb) {
+                const g = ctx.createLinearGradient(0, 0, 0, lienzo.height || 320);
+                g.addColorStop(0, 'rgba(' + rgb + ', 0.22)');
+                g.addColorStop(1, 'rgba(' + rgb + ', 0)');
+                return g;
+            };
 
-                // Degradados suaves bajo cada línea (look moderno tipo SaaS)
-                const gradienteVentas = chartCtx.createLinearGradient(0, 0, 0, 320);
-                gradienteVentas.addColorStop(0, 'rgba(22, 163, 74, 0.20)');
-                gradienteVentas.addColorStop(1, 'rgba(22, 163, 74, 0)');
+            const serie = function (etiqueta, valores, color, rgb) {
+                return {
+                    label: etiqueta,
+                    data: valores,
+                    borderColor: color,
+                    backgroundColor: degradado(rgb),
+                    fill: true,
+                    tension: 0.42,
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: color,
+                    pointBorderWidth: 2,
+                    pointHoverBackgroundColor: color,
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2
+                };
+            };
 
-                const gradienteReparaciones = chartCtx.createLinearGradient(0, 0, 0, 320);
-                gradienteReparaciones.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
-                gradienteReparaciones.addColorStop(1, 'rgba(37, 99, 235, 0)');
-
-                new Chart(chartCtx, {
-                    type: 'line',
-                    data: {
-                        labels: meses,
-                        datasets: [
-                            {
-                                label: 'Ventas',
-                                data: ventas,
-                                borderColor: '#16a34a',
-                                backgroundColor: gradienteVentas,
-                                fill: true,
-                                tension: 0.42,
-                                borderWidth: 2.5,
-                                pointRadius: 3,
-                                pointHoverRadius: 6,
-                                pointBackgroundColor: '#ffffff',
-                                pointBorderColor: '#16a34a',
-                                pointBorderWidth: 2,
-                                pointHoverBackgroundColor: '#16a34a',
-                                pointHoverBorderColor: '#ffffff',
-                                pointHoverBorderWidth: 2,
-                            },
-                            {
-                                label: 'Reparaciones',
-                                data: reparaciones,
-                                borderColor: '#2563eb',
-                                backgroundColor: gradienteReparaciones,
-                                fill: true,
-                                tension: 0.42,
-                                borderWidth: 2.5,
-                                pointRadius: 3,
-                                pointHoverRadius: 6,
-                                pointBackgroundColor: '#ffffff',
-                                pointBorderColor: '#2563eb',
-                                pointBorderWidth: 2,
-                                pointHoverBackgroundColor: '#2563eb',
-                                pointHoverBorderColor: '#ffffff',
-                                pointHoverBorderWidth: 2,
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        animation: { duration: 500, easing: 'easeOutQuart' },
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                align: 'end',
-                                labels: {
-                                    usePointStyle: true,
-                                    pointStyle: 'circle',
-                                    boxWidth: 8,
-                                    padding: 18,
-                                    font: { size: 12.5, weight: '600' },
-                                    color: '#475569'
-                                }
-                            },
-                            tooltip: {
-                                backgroundColor: '#111827',
-                                titleColor: '#f9fafb',
-                                bodyColor: '#e5e7eb',
-                                padding: 12,
-                                cornerRadius: 10,
-                                displayColors: true,
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: datos.map(function (d) { return d.mes; }),
+                    datasets: [
+                        serie('Ventas', datos.map(function (d) { return parseFloat(d.ventas || 0); }), '#3b72d9', '59, 114, 217'),
+                        serie('Reparaciones', datos.map(function (d) { return parseFloat(d.reparaciones || 0); }), '#1f9d5b', '31, 157, 91')
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    animation: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: {
                                 usePointStyle: true,
-                                boxPadding: 4,
-                                titleFont: { size: 12.5, weight: '600' },
-                                bodyFont: { size: 12.5 },
-                                callbacks: {
-                                    label: (item) => `${item.dataset.label}: $${Number(item.raw).toLocaleString('es-CO')}`
-                                }
+                                pointStyle: 'circle',
+                                boxWidth: 8,
+                                padding: 18,
+                                font: { size: Math.round(base * 0.82), weight: '600' },
+                                color: '#44536b'
                             }
                         },
-                        scales: {
-                            x: {
-                                grid: { display: false },
-                                ticks: { color: '#64748b', font: { size: 12 } }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: '#f1f5f9', drawTicks: false },
-                                border: { display: false },
-                                ticks: {
-                                    color: '#64748b',
-                                    font: { size: 12 },
-                                    padding: 8,
-                                    callback: (v) => '$' + Number(v).toLocaleString('es-CO')
+                        tooltip: {
+                            backgroundColor: '#10264b',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#e2e8f0',
+                            padding: 12,
+                            cornerRadius: 10,
+                            usePointStyle: true,
+                            boxPadding: 4,
+                            callbacks: {
+                                label: function (item) {
+                                    return item.dataset.label + ': $' + formatoPesos(item.raw);
                                 }
                             }
                         }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#62718a', font: { size: Math.round(base * 0.78) } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#e9eef6', drawTicks: false },
+                            border: { display: false },
+                            ticks: {
+                                color: '#62718a',
+                                font: { size: Math.round(base * 0.78) },
+                                padding: 8,
+                                callback: function (v) { return Number.isInteger(v) ? '$' + formatoPesos(v) : ''; }
+                            }
+                        }
                     }
-                });
-            }
+                }
+            });
         });
     </script>
-@endsection
+@endpush

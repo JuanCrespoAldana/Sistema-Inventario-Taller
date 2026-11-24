@@ -1,434 +1,274 @@
 @extends('layouts.app')
 
+@section('title', 'Reparaciones')
+@section('page-icon', 'wrench-adjustable')
+@section('page-title', 'Órdenes de reparación')
+@section('page-subtitle', 'Consulta, edita y da seguimiento a las máquinas que ingresan al taller.')
+
+@section('page-actions')
+    <a href="{{ route('reparaciones.create') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Nueva orden
+    </a>
+@endsection
+
 @section('content')
-    <div class="container-fluid reparaciones-container">
-        <div class="reparaciones-layout">
 
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="venta-title">
-                    <i class="bi bi-wrench-adjustable"></i> Reparaciones
-                </h2>
+    @include('reparaciones.partials.filtros')
 
-                <a href="{{ route('reparaciones.create') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Nueva orden
-                </a>
-            </div>
-
-            {{-- FILTROS --}}
-            @include('reparaciones.partials.filtros')
-
-            <div class="table-responsive">
-                <table class="table tabla-reparaciones">
-                    <thead class="tabla-header">
-                        <tr>
-                            <th class="text-center">N° Orden</th>
-                            <th>Cliente</th>
-                            <th class="text-center">Teléfono</th>
-                            <th>Máquinas</th>
-                            <th >Técnicos</th>
-                            <th class="text-center">Estado</th>
-                            <th class="text-center">Salida</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @forelse ($ordenes as $orden)
-
-                            @php    
-                                $estados = $orden->maquinas->pluck('estado');
-
-                                if ($estados->isEmpty()) {
-                                    $estadoGeneral = null;
-                                } elseif ($estados->contains('en_reparacion')) {
-                                    $estadoGeneral = 'en_reparacion';
-                                } elseif ($estados->contains('pendiente') && $estados->contains('entregada')) {
-                                    $estadoGeneral = 'en_reparacion';
-                                } elseif ($estados->every(fn($e) => $e === 'entregada')) {
-                                    $estadoGeneral = 'entregada';
-                                } else {
-                                    $estadoGeneral = 'pendiente';
-                                }
-
-                                $salida = $orden->maquinas
-                                    ->whereNotNull('fecha_salida')
-                                    ->max('fecha_salida');
-                            @endphp
-
-
-                            <tr class="animate-fade-in" >
-                                <td class="fw-bold">{{ $orden->numero_orden }}</td>
-                                <td>{{ $orden->cliente->nombre }}</td>
-                                <td>{{ $orden->telefono }}</td>
-
-                                <td>
-                                    @if(isset($orden->faltante))
-                                        <span class="text-muted">No registrada</span>
-                                    @else
-                                        @foreach ($orden->maquinas as $index => $m)
-                                            <div class="d-flex align-items-center mb-1">
-
-                                                <span class="badge bg-light text-dark me-2" style="width: 28px;">
-                                                    {{ chr(65 + $index) }}
-                                                </span>
-
-                                                <span>
-                                                    {{ $m->descripcion }}
-                                                </span>
-
-                                            </div>
-                                        @endforeach
-                                    @endif
-                                </td>
-
-
-                                <td>
-                                    @foreach ($orden->maquinas->pluck('tecnico.nombre')->unique() as $tec)
-                                        <div>{{ $tec ?? 'Sin asignar' }}</div>
-                                    @endforeach
-                                </td>
-
-                                <td class="text-center">
-                                    @if(!$estadoGeneral)
-                                        <span class="badge bg-secondary px-3 py-2">
-                                            Sin máquinas
-                                        </span>
-                                    @else
-                                                        <span class="badge px-3 py-2 bg-{{
-                                        $estadoGeneral === 'pendiente' ? 'warning' :
-                                        ($estadoGeneral === 'en_reparacion' ? 'info' : 'success')
-                                                                                                                                        }}">
-                                                            {{ ucfirst(str_replace('_', ' ', $estadoGeneral)) }}
-                                                        </span>
-                                    @endif
-                                </td>
-
-                                <td class="text-center">
-                                    {{ $salida ? \Carbon\Carbon::parse($salida)->format('d/m/Y') : 'F/A' }}
-                                </td>
-
-                                <td class="text-center">
-                                    <div class="d-flex justify-content-center gap-1">
-                                        <button class="btn btn-sm btn-outline-primary" onclick="verOrden({{ $orden->id }})">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-
-                                        <button class="btn btn-sm btn-outline-warning" onclick="editarOrden({{ $orden->id }})">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-
-                                        <button class="btn btn-sm btn-outline-danger" onclick="eliminarOrden({{ $orden->id }})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-
-                        @empty
-                            <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
-                                    No hay órdenes de reparación
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            {{-- FORM DELETE --}}
-            <form id="form-eliminar" method="POST" style="display:none;">
-                @csrf
-                @method('DELETE')
-            </form>
-
-            <div class="d-flex justify-content-end mt-3">
-                {{ $ordenes->withQueryString()->links() }}
-            </div>
-
-        </div>
+    <div class="result-summary">
+        <span><strong>{{ number_format($ordenes->total(), 0, ',', '.') }}</strong> {{ $ordenes->total() == 1 ? 'orden' : 'órdenes' }}{{ request()->anyFilled(['numero_orden', 'cliente', 'tecnico_id', 'estado', 'telefono', 'maquina', 'garantia', 'desde', 'hasta', 'entrada_desde', 'entrada_hasta']) ? ' con estos filtros' : '' }}</span>
     </div>
 
-    <script>
-        function verOrden(id) {
-            const url = `{{ route('reparaciones.show', ':id') }}`.replace(':id', id);
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Orden</th>
+                    <th>Cliente</th>
+                    <th>Máquinas</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Salida</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
 
-            fetch(url)
-                .then(r => {
-                    if (!r.ok) throw new Error('Error al cargar la orden');
-                    return r.text();
-                })
-                .then(html => {
-                    document.getElementById('modalOrdenContent').innerHTML = html;
-                    new bootstrap.Modal(
-                        document.getElementById('modalOrden')
-                    ).show();
-                })
-                .catch(err => {
-                    console.error(err);
-                    mostrarAlertaGlobal('No fue posible cargar la información de la orden. Intenta nuevamente.', 'danger');
-                });
-        }
+            <tbody>
+                @forelse ($ordenes as $orden)
+                    @php
+                        $estados = $orden->maquinas->pluck('estado');
 
-        function editarOrden(id) {
-            const url = `{{ route('reparaciones.edit', ':id') }}`.replace(':id', id);
-
-            fetch(url)
-                .then(r => {
-                    if (!r.ok) throw new Error('Error al cargar la edición');
-                    return r.text();
-                })
-                .then(html => {
-                    document.getElementById('modalOrdenContent').innerHTML = html;
-                    const modal = new bootstrap.Modal(document.getElementById('modalOrden'));
-                    modal.show();
-
-                    // ✅ Interceptar el submit del formulario para hacerlo via AJAX
-                    const form = document.getElementById('modalOrdenContent').querySelector('form');
-                    if (!form) return;
-
-                    form.addEventListener('submit', function (e) {
-                        e.preventDefault();
-
-                        const submitBtn = form.querySelector('[type="submit"]');
-                        if (submitBtn) {
-                            submitBtn.disabled = true;
-                            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+                        if ($estados->isEmpty()) {
+                            $estadoGeneral = null;
+                        } elseif ($estados->contains('en_reparacion')) {
+                            $estadoGeneral = 'en_reparacion';
+                        } elseif ($estados->contains('pendiente') && $estados->contains('entregada')) {
+                            $estadoGeneral = 'en_reparacion';
+                        } elseif ($estados->every(fn($e) => $e === 'entregada')) {
+                            $estadoGeneral = 'entregada';
+                        } else {
+                            $estadoGeneral = 'pendiente';
                         }
 
-                        // Construir FormData con el método PUT spoofed
-                        const formData = new FormData(form);
+                        $etiquetaEstado = [
+                            'pendiente' => 'Pendiente',
+                            'en_reparacion' => 'En reparación',
+                            'entregada' => 'Entregada',
+                        ];
+                        $colorEstado = [
+                            'pendiente' => 'warning',
+                            'en_reparacion' => 'info',
+                            'entregada' => 'success',
+                        ];
 
-                        fetch(form.action, {
-                            method: 'POST',
-                            body: formData,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        })
-                        .then(r => {
-                            if (r.redirected || r.ok) {
-                                // Cerrar modal suavemente
-                                bootstrap.Modal.getInstance(document.getElementById('modalOrden')).hide();
-                                // Mostrar alerta de éxito y recargar tabla
-                                mostrarAlertaGlobal('Orden actualizada correctamente', 'success');
-                                setTimeout(() => location.reload(), 1200);
-                            } else {
-                                return r.text().then(html => {
-                                    // Mostrar errores dentro del modal
-                                    document.getElementById('modalOrdenContent').innerHTML = html;
-                                });
-                            }
-                        })
-                        .catch(() => {
-                            mostrarAlertaGlobal('No fue posible guardar la información. Intenta nuevamente.', 'danger');
-                            if (submitBtn) {
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = 'Guardar cambios';
-                            }
-                        });
-                    });
-                })
-                .catch(err => {
-                    console.error(err);
-                    mostrarAlertaGlobal('No fue posible cargar el formulario de edición. Intenta nuevamente.', 'danger');
-                });
-        }
+                        $salida = $orden->maquinas->whereNotNull('fecha_salida')->max('fecha_salida');
+                    @endphp
 
-        function mostrarAlertaGlobal(mensaje, tipo) {
-            showAppAlert(mensaje, tipo === 'danger' ? 'danger' : (tipo === 'success' ? 'success' : 'warning'));
-        }
+                    <tr class="fila-estado {{ $estadoGeneral ? 'fila-' . $estadoGeneral : '' }}">
+                        <td>
+                            <div class="cell-main">{{ $orden->numero_orden }}</div>
+                            @if ($orden->fecha_entrada)
+                                <div class="cell-sub">Ingresó {{ $orden->fecha_entrada->format('d/m/Y') }}</div>
+                            @endif
+                        </td>
 
-        async function eliminarOrden(id) {
-            const confirmed = await confirmDialog('¿Seguro que deseas eliminar esta orden de reparación?');
-            if (!confirmed) return;
+                        <td>
+                            <div class="cell-title">{{ $orden->cliente->nombre ?? '—' }}</div>
+                            @if ($orden->telefono)
+                                <div class="cell-sub">{{ $orden->telefono }}</div>
+                            @endif
+                        </td>
 
-            const form = document.getElementById('form-eliminar');
-            form.action = `{{ route('reparaciones.destroy', ':id') }}`.replace(':id', id);
-            form.submit();
-        }
-
-        document.addEventListener('click', function (e) {
-
-            // ==========================
-            // AGREGAR MÁQUINA
-            // ==========================
-            if (e.target.closest('.btn-agregar-maquina')) {
-
-                const contenedor = document.getElementById('contenedor-maquinas');
-                if (!contenedor) return;
-
-                let contador = contenedor.querySelectorAll('.maquina-item').length;
-                const letra = String.fromCharCode(65 + contador);
-
-                const nueva = document.createElement('div');
-                nueva.className = "border rounded p-3 mb-4 maquina-item";
-
-                nueva.innerHTML = `
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="mb-0 titulo-maquina">
-                                        <i class="bi bi-hdd"></i> Máquina ${letra}
-                                    </h6>
-                                    <button type="button"
-                                            class="btn btn-sm btn-danger btn-eliminar-maquina">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-
-                                <div class="row g-3 mb-3">
-
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Máquina</small>
-                                        <input type="text"
-                                               name="maquinas[${contador}][descripcion]"
-                                               class="form-control">
+                        <td>
+                            <div class="mini-lista">
+                                @forelse ($orden->maquinas as $index => $m)
+                                    <div class="mini-item">
+                                        <span class="badge bg-primary badge-letter">{{ chr(65 + $index) }}</span>
+                                        <span class="mini-item-text">
+                                            <span class="fila-{{ $m->estado }}" title="{{ $etiquetaEstado[$m->estado] ?? '' }}"><span class="estado-punto"></span></span>{{ $m->descripcion }}
+                                            <span class="cell-sub">{{ $m->tecnico->nombre ?? 'Sin técnico asignado' }}</span>
+                                        </span>
                                     </div>
+                                @empty
+                                    <span class="value-zero">No registradas</span>
+                                @endforelse
+                            </div>
+                        </td>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Técnico</small>
-                                        <select name="maquinas[${contador}][tecnico_id]"
-                                                class="form-control">
-                                            <option value="">Sin asignar</option>
-                                            @foreach($tecnicos as $t)
-                                                <option value="{{ $t->id }}">{{ $t->nombre }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
+                        <td class="text-center">
+                            @if ($estadoGeneral)
+                                <span class="badge bg-{{ $colorEstado[$estadoGeneral] }}">
+                                    {{ $etiquetaEstado[$estadoGeneral] }}
+                                </span>
+                            @else
+                                <span class="badge bg-secondary">Sin máquinas</span>
+                            @endif
+                        </td>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Estado</small>
-                                        <select name="maquinas[${contador}][estado]"
-                                                class="form-control">
-                                            <option value="pendiente">Pendiente</option>
-                                            <option value="en_reparacion">En reparación</option>
-                                            <option value="entregada">Entregada</option>
-                                        </select>
-                                    </div>
+                        <td class="text-center text-nowrap">
+                            @if ($salida)
+                                {{ \Carbon\Carbon::parse($salida)->format('d/m/Y') }}
+                            @else
+                                <span class="value-zero">—</span>
+                            @endif
+                        </td>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">¿Garantía?</small>
-                                        <select name="maquinas[${contador}][es_garantia]"
-                                                class="form-control">
-                                            <option value="0">No</option>
-                                            <option value="1">Sí</option>
-                                        </select>
-                                    </div>
+                        <td class="text-center">
+                            <div class="btn-group-actions">
+                                <button type="button" class="btn btn-outline-primary btn-icon" title="Ver orden"
+                                    onclick="verOrden({{ $orden->id }})">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-icon" title="Editar orden"
+                                    onclick="editarOrden({{ $orden->id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-icon" title="Eliminar orden"
+                                    onclick="eliminarOrden({{ $orden->id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <i class="bi bi-wrench-adjustable"></i>
+                                <strong>No hay órdenes de reparación</strong>
+                                <span>{{ request()->anyFilled(['numero_orden', 'cliente', 'telefono', 'tecnico_id', 'estado', 'desde', 'hasta', 'maquina', 'garantia', 'entrada_desde', 'entrada_hasta']) ? 'Prueba con otros filtros.' : 'Las órdenes que registres aparecerán aquí.' }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Tipo garantía</small>
-                                        <input type="text"
-                                               name="maquinas[${contador}][tipo_garantia]"
-                                               class="form-control">
-                                    </div>
+    <form id="form-eliminar" method="POST" class="d-none" data-sin-bloqueo>
+        @csrf
+        @method('DELETE')
+    </form>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Factura</small>
-                                        <input type="text"
-                                               name="maquinas[${contador}][factura]"
-                                               class="form-control">
-                                    </div>
+    <div class="paginacion-wrap">
+        {{ $ordenes->withQueryString()->links() }}
+    </div>
 
-                                    <div class="col-md-4">
-                                        <small class="text-muted">Fecha de salida</small>
-                                        <input type="date"
-                                               name="maquinas[${contador}][fecha_salida]"
-                                               class="form-control">
-                                    </div>
-
-                                </div>
-
-                                <div class="mb-3">
-                                    <small class="text-muted fw-bold">
-                                        <i class="bi bi-clipboard-check"></i> Cotización
-                                    </small>
-                                    <textarea name="maquinas[${contador}][cotizacion]"
-                                              class="form-control"
-                                              rows="3"></textarea>
-                                </div>
-
-                                <div class="row mt-3">
-
-                                    <div class="col-md-6">
-                                        <small class="text-muted">Mano de obra</small>
-                                        <input type="text"
-                                               name="maquinas[${contador}][mano_obra]"
-                                               class="form-control dinero">
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <small class="text-muted">Total</small>
-                                        <input type="text"
-                                               name="maquinas[${contador}][total]"
-                                               class="form-control dinero">
-                                    </div>
-
-                                </div>
-                            `;
-
-                contenedor.appendChild(nueva);
-
-                // 🔥 Scroll automático al nuevo bloque
-                setTimeout(() => {
-
-                    const modalBody = document.querySelector('.modal-body');
-
-                    if (modalBody) {
-                        modalBody.scrollTo({
-                            top: nueva.offsetTop,
-                            behavior: 'smooth'
-                        });
-                    } else {
-                        // por si no encuentra modal-body
-                        nueva.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
-                        });
-                    }
-
-                }, 100);
-            }
-
-            // ==========================
-            // ELIMINAR MÁQUINA
-            // ==========================
-            if (e.target.closest('.btn-eliminar-maquina')) {
-
-                const item = e.target.closest('.maquina-item');
-                const contenedor = document.getElementById('contenedor-maquinas');
-
-                if (!item || !contenedor) return;
-
-                item.remove();
-
-                const items = contenedor.querySelectorAll('.maquina-item');
-
-                items.forEach((item, index) => {
-                    item.querySelector('.titulo-maquina')
-                        .innerText = "Máquina " + String.fromCharCode(65 + index);
-                });
-            }
-
-        });
-
-
-        // ==========================
-        // FORMATO DINERO GLOBAL
-        // ==========================
-        document.addEventListener('input', function (e) {
-
-            if (e.target.classList.contains('dinero')) {
-
-                let valor = e.target.value.replace(/\D/g, '');
-
-                if (!valor) {
-                    e.target.value = '';
-                    return;
-                }
-
-                e.target.value = new Intl.NumberFormat('es-CO').format(valor);
-            }
-
-        });
-    </script>
 @endsection
 
 @push('modals')
     @include('reparaciones.partials.modales')
+@endpush
+
+@push('scripts')
+    <script>
+        const URL_VER = @json(route('reparaciones.show', ':id'));
+        const URL_EDITAR = @json(route('reparaciones.edit', ':id'));
+        const URL_ELIMINAR = @json(route('reparaciones.destroy', ':id'));
+
+        const modalOrdenEl = document.getElementById('modalOrden');
+        const modalOrdenContenido = document.getElementById('modalOrdenContent');
+
+        function abrirModalOrden(html) {
+            modalOrdenContenido.innerHTML = html;
+            bootstrap.Modal.getOrCreateInstance(modalOrdenEl).show();
+        }
+
+        function cargarOrden(url, mensajeError) {
+            return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) {
+                    if (!r.ok) throw new Error(mensajeError);
+                    return r.text();
+                });
+        }
+
+        function verOrden(id) {
+            cargarOrden(URL_VER.replace(':id', id), 'No fue posible cargar la orden.')
+                .then(abrirModalOrden)
+                .catch(function () {
+                    showAppAlert('No fue posible cargar la información de la orden. Intenta nuevamente.', 'danger');
+                });
+        }
+
+        function editarOrden(id) {
+            cargarOrden(URL_EDITAR.replace(':id', id), 'No fue posible cargar la edición.')
+                .then(function (html) {
+                    abrirModalOrden(html);
+                    prepararFormularioEdicion();
+                })
+                .catch(function () {
+                    showAppAlert('No fue posible cargar el formulario de edición. Intenta nuevamente.', 'danger');
+                });
+        }
+
+        function prepararFormularioEdicion() {
+            const form = modalOrdenContenido.querySelector('form');
+            if (!form) return;
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const boton = form.querySelector('button[type="submit"]');
+                const textoOriginal = boton ? boton.innerHTML : '';
+
+                if (boton) {
+                    boton.disabled = true;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+                }
+
+                const datos = new FormData(form);
+                form.querySelectorAll('.dinero').forEach(function (input) {
+                    datos.set(input.name, input.value.replace(/\./g, ''));
+                });
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: datos,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                    .then(function (r) {
+                        return r.json().catch(function () { return {}; }).then(function (cuerpo) {
+                            return { ok: r.ok, estado: r.status, cuerpo: cuerpo };
+                        });
+                    })
+                    .then(function (res) {
+                        if (res.ok) {
+                            bootstrap.Modal.getInstance(modalOrdenEl).hide();
+                            showAppAlert(res.cuerpo.mensaje || 'Orden actualizada correctamente.', 'success');
+                            setTimeout(function () { location.reload(); }, 600);
+                            return;
+                        }
+
+                        if (res.estado === 422 && res.cuerpo.errors) {
+                            showValidationErrors(res.cuerpo.errors);
+                        } else {
+                            showAppAlert(res.cuerpo.mensaje || res.cuerpo.message || 'No se pudo actualizar la orden. Intenta nuevamente.', 'danger');
+                        }
+
+                        if (boton) {
+                            boton.disabled = false;
+                            boton.innerHTML = textoOriginal;
+                        }
+                    })
+                    .catch(function () {
+                        showAppAlert('No fue posible guardar la información. Intenta nuevamente.', 'danger');
+                        if (boton) {
+                            boton.disabled = false;
+                            boton.innerHTML = textoOriginal;
+                        }
+                    });
+            });
+        }
+
+        async function eliminarOrden(id) {
+            const confirmado = await confirmDialog('¿Seguro que deseas eliminar esta orden de reparación? Se eliminarán también sus máquinas.');
+            if (!confirmado) return;
+
+            const form = document.getElementById('form-eliminar');
+            form.action = URL_ELIMINAR.replace(':id', id);
+            form.submit();
+        }
+    </script>
 @endpush

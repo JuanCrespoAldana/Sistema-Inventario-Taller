@@ -27,7 +27,6 @@ class OrdenMaquina extends Model
 
     protected $casts = [
         'created_at' => 'datetime',
-        'fecha_entrada' => 'date',
         'fecha_salida' => 'datetime',
     ];
 

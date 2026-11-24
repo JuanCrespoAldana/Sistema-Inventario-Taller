@@ -129,6 +129,8 @@ return [
         'stock' => 'stock',
         'cantidad' => 'cantidad',
         'referencia' => 'referencia',
+        'producto_id' => 'producto',
+        'tipo_operacion' => 'tipo de operación',
         'telefono' => 'teléfono',
         'email' => 'correo electrónico',
         'fecha' => 'fecha',

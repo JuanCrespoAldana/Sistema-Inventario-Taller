@@ -1,65 +1,41 @@
 @extends('layouts.app')
 
-@section('title', 'Nuevo Técnico')
-@section('page-title')
-    <i class="bi bi-person-plus me-2" style="color:#2563eb;"></i>
-    Crear Técnico
+@section('title', 'Nuevo técnico')
+@section('page-icon', 'person-plus')
+@section('page-title', 'Nuevo técnico')
+@section('page-subtitle', 'Registra a una persona del equipo técnico del taller.')
+
+@section('page-actions')
+    <a href="{{ route('tecnicos.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a técnicos
+    </a>
 @endsection
 
 @section('content')
 
-    {{-- ALERT ERRORES --}}
-    @if ($errors->any())
-        <div class="alert alert-danger alert-modern auto-dismiss">
-            <ul class="mb-0 small">
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
+    <div class="form-page-sm">
+        <div class="form-block">
+            <div class="form-block-head"><span><i class="bi bi-person-gear"></i> Datos del técnico</span></div>
+            <div class="form-block-body">
+                <form action="{{ route('tecnicos.store') }}" method="POST" autocomplete="off">
+                    @csrf
 
-    <div class="card card-modern form-card">
-        <div class="card-body p-4">
+                    <label class="form-label" for="nombre">Nombre completo</label>
+                    <input type="text" id="nombre" name="nombre" class="form-control @error('nombre') is-invalid @enderror"
+                        value="{{ old('nombre') }}" maxlength="150" placeholder="Ej: Juan Pérez" required autofocus>
+                    @error('nombre')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
 
-            <h5 class="fw-semibold mb-4">Registrar Técnico</h5>
-
-            <form action="{{ route('tecnicos.store') }}" method="POST">
-                @csrf
-
-                <div class="mb-3">
-                    <label class="form-label">Nombre</label>
-                    <input type="text" name="nombre" class="form-control input-modern" value="{{ old('nombre') }}" required>
-                </div>
-
-                <div class="d-flex justify-content-end gap-2 mt-4">
-                    <a href="{{ route('tecnicos.index') }}" class="btn btn-light border rounded-pill px-4">
-                        Cancelar
-                    </a>
-
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">
-                        Guardar
-                    </button>
-                </div>
-
-            </form>
-
+                    <div class="form-card-actions">
+                        <a href="{{ route('tecnicos.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2-circle"></i> Guardar técnico
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-
-    {{-- AUTO DISMISS --}}
-    @push('scripts')
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                document.querySelectorAll('.auto-dismiss').forEach(function (alert) {
-                    setTimeout(() => {
-                        alert.style.transition = "opacity .4s ease";
-                        alert.style.opacity = "0";
-                        setTimeout(() => alert.remove(), 400);
-                    }, 3000);
-                });
-            });
-        </script>
-    @endpush
 
 @endsection

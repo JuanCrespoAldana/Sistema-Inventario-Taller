@@ -1,217 +1,157 @@
 @extends('layouts.app')
 
-@section('title', 'Ajuste de Inventario')
+@section('title', 'Ajustes de stock')
+@section('page-icon', 'sliders')
+@section('page-title', 'Ajustes de stock')
+@section('page-subtitle', 'Agrega o quita existencias de uno o varios productos.')
 
-@section('page-title')
-    <i class="bi bi-sliders me-2"></i>
-    Ajuste de Inventario
+@section('page-actions')
+    <a href="{{ route('inventario.movimientos.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left-right"></i> Ver movimientos
+    </a>
 @endsection
 
 @section('content')
 
-    <div class="d-flex justify-content-center">
-        <div style="width:100%; max-width:600px;">
+    <form id="formAjuste" method="POST" action="{{ route('inventario.ajustes.store') }}" class="form-page" autocomplete="off">
+        @csrf
 
-            {{-- ALERTA ÉXITO --}}
-            @if ($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show shadow-sm">
-                    <ul class="mb-0">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                </div>
-            @endif
+        <div class="form-block">
+            <div class="form-block-head">
+                <span><i class="bi bi-box-seam"></i> Productos a ajustar</span>
+                <button type="button" id="btnAgregarProducto" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-plus-lg"></i> Agregar producto
+                </button>
+            </div>
+            <div class="form-block-body">
+                <div id="productosSeleccionados" class="d-flex flex-column gap-3"></div>
+            </div>
+        </div>
 
-            {{-- ALERTA ERROR --}}
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-4">
-
-                    <form id="formAjuste" method="POST" action="{{ route('inventario.ajustes.store') }}">
-                        @csrf
-
-                        {{-- PRODUCTOS --}}
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <label class="form-label fw-semibold mb-0">
-                                    <i class="bi bi-search me-1"></i>
-                                    Productos
-                                </label>
-                                <button type="button" id="btnAgregarProducto" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-plus-lg"></i> Agregar producto
-                                </button>
+                <template id="productoRowTemplate">
+                    <div class="producto-row row g-3 align-items-start mx-0 position-relative">
+                        <div class="col-md-6">
+                            <label class="form-label">Producto</label>
+                            <div class="ac-wrap">
+                                <input type="text" class="form-control producto-buscar" placeholder="Código o nombre"
+                                    autocomplete="off">
+                                <input type="hidden" name="producto_id[]" class="producto-id">
+                                <div class="ac-list resultados-producto"></div>
                             </div>
-
-                            <div id="productosSeleccionados" class="row g-3 mb-3"></div>
-
-                            <template id="productoRowTemplate">
-                                <div class="producto-row row g-2 align-items-end border rounded-3 p-3 position-relative">
-                                    <div class="col-md-6">
-                                        <label class="form-label visually-hidden">Buscar producto</label>
-                                        <input type="text" class="form-control producto-buscar" placeholder="Código o nombre..." autocomplete="off">
-                                        <input type="hidden" name="producto_id[]" class="producto-id">
-                                        <div class="list-group mt-1 resultados-producto d-none" style="position: relative; z-index: 10;"></div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label visually-hidden">Cantidad</label>
-                                        <input type="number" name="cantidad[]" class="form-control cantidad-producto" min="1" placeholder="Cantidad" required>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label class="form-label mb-1">Stock actual</label>
-                                        <div class="form-control-plaintext text-secondary producto-stock">-</div>
-                                    </div>
-                                    <div class="col-md-1 text-end">
-                                        <button type="button" class="btn btn-outline-danger btn-sm btn-eliminar-producto" title="Quitar producto">×</button>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="alert alert-light border small mb-0 d-none info-producto">
-                                            <strong class="producto-nombre"></strong><br>
-                                            Código: <span class="producto-codigo"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
                         </div>
-
-                        <div class="row g-3">
-
-                            {{-- OPERACIÓN --}}
-                            <div class="col-6">
-                                <label class="form-label fw-semibold">
-                                    Operación
-                                </label>
-                                <select name="tipo_operacion" id="tipo_operacion" class="form-select @error('tipo_operacion') is-invalid @enderror" required>
-                                    <option value="">Seleccione</option>
-                                    <option value="sumar" {{ old('tipo_operacion') == 'sumar' ? 'selected' : '' }}>Agregar</option>
-                                    <option value="restar" {{ old('tipo_operacion') == 'restar' ? 'selected' : '' }}>Quitar</option>
-                                </select>
-                                @error('tipo_operacion')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            {{-- MOTIVO --}}
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">
-                                    Motivo
-                                </label>
-                                <select name="referencia" id="referencia" class="form-select @error('referencia') is-invalid @enderror" required>
-                                    <option value="">Seleccione motivo</option>
-                                    <option value="Venta" {{ old('referencia') == 'Venta' ? 'selected' : '' }}>Venta</option>
-                                    <option value="Compra" {{ old('referencia') == 'Compra' ? 'selected' : '' }}>Compra</option>
-                                    <option value="Devolución" {{ old('referencia') == 'Devolución' ? 'selected' : '' }}>Devolución</option>
-                                    <option value="Uso interno" {{ old('referencia') == 'Uso interno' ? 'selected' : '' }}>Uso interno</option>
-                                    <option value="Ajuste" {{ old('referencia') == 'Ajuste' ? 'selected' : '' }}>Ajuste</option>
-                                </select>
-                                @error('referencia')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            {{-- BOTÓN --}}
-                            <div class="col-12 mt-3">
-                                <button type="submit" id="btnGuardar" class="btn btn-primary w-100 rounded-3">
-                                    <i class="bi bi-save me-1"></i>
-                                    Guardar Ajuste
-                                </button>
-                            </div>
-
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">Cantidad</label>
+                            <input type="number" name="cantidad[]" class="form-control cantidad-producto" min="1"
+                                placeholder="0" required>
                         </div>
+                        <div class="col-5 col-md-2">
+                            <label class="form-label">Stock actual</label>
+                            <div class="form-control-plaintext fw-semibold producto-stock">—</div>
+                        </div>
+                        <div class="col-1 text-end pt-md-4">
+                            <button type="button" class="btn btn-outline-danger btn-icon btn-eliminar-producto"
+                                title="Quitar producto">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="col-12 info-producto d-none">
+                            <div class="form-hint mt-0">
+                                <strong class="producto-nombre"></strong> · Código: <span class="producto-codigo"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
-                    </form>
+        <div class="form-block">
+            <div class="form-block-head"><span><i class="bi bi-arrow-left-right"></i> Tipo de movimiento</span></div>
+            <div class="form-block-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="tipo_operacion">Operación</label>
+                        <select name="tipo_operacion" id="tipo_operacion"
+                            class="form-select @error('tipo_operacion') is-invalid @enderror" required>
+                            <option value="">Selecciona una opción</option>
+                            <option value="sumar" {{ old('tipo_operacion') == 'sumar' ? 'selected' : '' }}>Agregar stock</option>
+                            <option value="restar" {{ old('tipo_operacion') == 'restar' ? 'selected' : '' }}>Quitar stock</option>
+                        </select>
+                        @error('tipo_operacion')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="referencia">Motivo</label>
+                        <select name="referencia" id="referencia"
+                            class="form-select @error('referencia') is-invalid @enderror" required>
+                            <option value="">Selecciona el motivo</option>
+                            <option value="Venta" {{ old('referencia') == 'Venta' ? 'selected' : '' }}>Venta</option>
+                            <option value="Compra" {{ old('referencia') == 'Compra' ? 'selected' : '' }}>Compra</option>
+                            <option value="Devolución" {{ old('referencia') == 'Devolución' ? 'selected' : '' }}>Devolución</option>
+                            <option value="Uso interno" {{ old('referencia') == 'Uso interno' ? 'selected' : '' }}>Uso interno</option>
+                            <option value="Ajuste" {{ old('referencia') == 'Ajuste' ? 'selected' : '' }}>Ajuste</option>
+                        </select>
+                        @error('referencia')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
 
                 </div>
             </div>
-
         </div>
-    </div>
+
+        <button type="submit" id="btnGuardar" class="btn btn-primary btn-lg w-100">
+            <i class="bi bi-save"></i> Guardar ajuste
+        </button>
+
+    </form>
 
 @endsection
 
-
 @push('scripts')
     <script>
-
-        // ================= ALERTA AUTO OCULTAR =================
-        setTimeout(function () {
-            let alert = document.getElementById('alertSuccess');
-            if (alert) {
-                alert.classList.remove('show');
-                alert.classList.add('fade');
-                setTimeout(() => alert.remove(), 500);
-            }
-        }, 3000);
-
-
-        // ================= BOTÓN DINÁMICO =================
-        const motivosAgregar = [
-            { value: 'Compra', label: 'Compra' },
-            { value: 'Devolución', label: 'Devolución' },
-            { value: 'Ajuste', label: 'Ajuste' },
-        ];
-
-        const motivosQuitar = [
-            { value: 'Venta', label: 'Venta' },
-            { value: 'Uso interno', label: 'Uso interno' },
-            { value: 'Ajuste', label: 'Ajuste' },
-        ];
+        const motivosAgregar = ['Compra', 'Devolución', 'Ajuste'];
+        const motivosQuitar = ['Venta', 'Uso interno', 'Ajuste'];
 
         function actualizarMotivos(valor) {
             const select = document.getElementById('referencia');
             const valorActual = select.value;
-            select.innerHTML = '<option value="">Seleccione motivo</option>';
+            select.innerHTML = '<option value="">Selecciona el motivo</option>';
 
-            let lista = [];
-            if (valor === 'sumar') {
-                lista = motivosAgregar;
-            } else if (valor === 'restar') {
-                lista = motivosQuitar;
-            }
+            const lista = valor === 'sumar' ? motivosAgregar : (valor === 'restar' ? motivosQuitar : []);
 
-            lista.forEach(item => {
+            lista.forEach(function (motivo) {
                 const option = document.createElement('option');
-                option.value = item.value;
-                option.textContent = item.label;
-                if (item.value === valorActual) {
-                    option.selected = true;
-                }
+                option.value = motivo;
+                option.textContent = motivo;
+                option.selected = motivo === valorActual;
                 select.appendChild(option);
             });
         }
 
         function actualizarBotonOperacion(valor) {
-            let btn = document.getElementById('btnGuardar');
+            const btn = document.getElementById('btnGuardar');
 
             if (valor === 'sumar') {
-                btn.className = 'btn btn-success w-100 rounded-3';
-                btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i> Agregar Stock';
+                btn.className = 'btn btn-success btn-lg w-100';
+                btn.innerHTML = '<i class="bi bi-plus-circle"></i> Agregar stock';
             } else if (valor === 'restar') {
-                btn.className = 'btn btn-danger w-100 rounded-3';
-                btn.innerHTML = '<i class="bi bi-dash-circle me-1"></i> Quitar Stock';
+                btn.className = 'btn btn-danger btn-lg w-100';
+                btn.innerHTML = '<i class="bi bi-dash-circle"></i> Quitar stock';
             } else {
-                btn.className = 'btn btn-primary w-100 rounded-3';
-                btn.innerHTML = '<i class="bi bi-save me-1"></i> Guardar Ajuste';
+                btn.className = 'btn btn-primary btn-lg w-100';
+                btn.innerHTML = '<i class="bi bi-save"></i> Guardar ajuste';
             }
         }
 
-        document.getElementById('tipo_operacion')
-            .addEventListener('change', function () {
-                actualizarBotonOperacion(this.value);
-                actualizarMotivos(this.value);
-            });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const operacion = document.getElementById('tipo_operacion').value;
-            actualizarBotonOperacion(operacion);
-            actualizarMotivos(operacion);
+        document.getElementById('tipo_operacion').addEventListener('change', function () {
+            actualizarBotonOperacion(this.value);
+            actualizarMotivos(this.value);
         });
 
+        const busquedaProductosUrl = @json(route('inventario.buscar.producto'));
+        const productosAnteriores = @json($productosSeleccionadosAnteriores ?? []);
 
-        // ================= AUTOCOMPLETE EN TIEMPO REAL =================
-        const busquedaProductosUrl = "{{ route('inventario.buscar.producto') }}";
-
-        function crearRowProducto() {
+        function crearRowProducto(datosIniciales) {
             const template = document.getElementById('productoRowTemplate');
             const nodo = template.content.firstElementChild.cloneNode(true);
 
@@ -225,68 +165,103 @@
             const btnEliminar = nodo.querySelector('.btn-eliminar-producto');
             const cantidadInput = nodo.querySelector('.cantidad-producto');
 
-            function limpiarRow() {
-                hiddenId.value = '';
-                stockLabel.textContent = '-';
-                nombreLabel.textContent = '';
-                codigoLabel.textContent = '';
-                infoContainer.classList.add('d-none');
+            if (datosIniciales && datosIniciales.id) {
+                hiddenId.value = datosIniciales.id;
+                inputBuscar.value = (datosIniciales.codigo || '') + ' - ' + (datosIniciales.nombre || '');
+                cantidadInput.value = datosIniciales.cantidad || '';
+                stockLabel.textContent = datosIniciales.stock ?? '—';
+                nombreLabel.textContent = datosIniciales.nombre || '';
+                codigoLabel.textContent = datosIniciales.codigo || '';
+                if (datosIniciales.nombre) infoContainer.classList.remove('d-none');
+            }
+
+            let timerBusqueda = null;
+            let controladorBusqueda = null;
+
+            function ocultarResultados() {
+                resultados.style.display = 'none';
+                resultados.innerHTML = '';
+            }
+
+            function cancelarBusqueda() {
+                clearTimeout(timerBusqueda);
+                if (controladorBusqueda) {
+                    controladorBusqueda.abort();
+                    controladorBusqueda = null;
+                }
+            }
+
+            function colorStock(stock, minimo) {
+                if (stock <= 0) return 'text-danger';
+                if (stock <= (minimo === undefined ? 2 : minimo)) return 'text-warning';
+                return 'text-success';
+            }
+
+            function buscar(query) {
+                controladorBusqueda = new AbortController();
+
+                fetch(busquedaProductosUrl + '?q=' + encodeURIComponent(query), { signal: controladorBusqueda.signal })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        resultados.innerHTML = '';
+
+                        if (!data.length) {
+                            resultados.innerHTML = '<div class="ac-empty">Sin resultados</div>';
+                            resultados.style.display = 'block';
+                            return;
+                        }
+
+                        data.forEach(function (producto) {
+                            const item = document.createElement('div');
+                            item.className = 'ac-item';
+                            item.innerHTML =
+                                '<div><div class="ac-codigo">' + escaparHtml(producto.codigo) + '</div>' +
+                                '<div class="ac-nombre">' + escaparHtml(producto.nombre) + '</div></div>' +
+                                '<div class="ac-stock ' + colorStock(producto.stock, producto.stock_minimo) + '">Stock: ' + escaparHtml(producto.stock) + '</div>';
+
+                            item.addEventListener('mousedown', function (event) {
+                                event.preventDefault();
+                                cancelarBusqueda();
+                                hiddenId.value = producto.id;
+                                inputBuscar.value = producto.codigo + ' - ' + producto.nombre;
+                                inputBuscar.classList.remove('is-invalid');
+                                stockLabel.textContent = producto.stock;
+                                nombreLabel.textContent = producto.nombre;
+                                codigoLabel.textContent = producto.codigo;
+                                infoContainer.classList.remove('d-none');
+                                ocultarResultados();
+                                cantidadInput.focus();
+                            });
+
+                            resultados.appendChild(item);
+                        });
+
+                        resultados.style.display = 'block';
+                    })
+                    .catch(function (err) {
+                        if (err.name !== 'AbortError') console.error(err);
+                    });
             }
 
             inputBuscar.addEventListener('input', function () {
                 const query = this.value.trim();
 
                 hiddenId.value = '';
-                stockLabel.textContent = '-';
+                stockLabel.textContent = '—';
                 infoContainer.classList.add('d-none');
 
+                cancelarBusqueda();
+
                 if (query.length < 1) {
-                    resultados.classList.add('d-none');
-                    resultados.innerHTML = '';
+                    ocultarResultados();
                     return;
                 }
 
-                fetch(busquedaProductosUrl + '?q=' + encodeURIComponent(query))
-                    .then(response => response.json())
-                    .then(data => {
-                        resultados.innerHTML = '';
-
-                        if (!data.length) {
-                            resultados.classList.add('d-none');
-                            return;
-                        }
-
-                        data.forEach(producto => {
-                            const item = document.createElement('a');
-                            item.classList.add('list-group-item', 'list-group-item-action');
-                            item.href = '#';
-                            item.innerHTML = `
-                                <strong>${producto.codigo}</strong>
-                                - ${producto.nombre}
-                                <br>
-                                <small>Stock: ${producto.stock}</small>
-                            `;
-
-                            item.addEventListener('click', function (event) {
-                                event.preventDefault();
-                                hiddenId.value = producto.id;
-                                inputBuscar.value = producto.codigo + ' - ' + producto.nombre;
-                                stockLabel.textContent = producto.stock;
-                                nombreLabel.textContent = producto.nombre;
-                                codigoLabel.textContent = producto.codigo;
-                                infoContainer.classList.remove('d-none');
-                                resultados.classList.add('d-none');
-                            });
-
-                            resultados.appendChild(item);
-                        });
-
-                        resultados.classList.remove('d-none');
-                    });
+                timerBusqueda = setTimeout(function () { buscar(query); }, 250);
             });
 
             inputBuscar.addEventListener('blur', function () {
-                setTimeout(() => resultados.classList.add('d-none'), 150);
+                setTimeout(ocultarResultados, 150);
             });
 
             btnEliminar.addEventListener('click', function () {
@@ -299,20 +274,63 @@
             return nodo;
         }
 
-        function agregarProductoRow() {
-            const contenedor = document.getElementById('productosSeleccionados');
-            contenedor.appendChild(crearRowProducto());
+        function agregarProductoRow(datosIniciales) {
+            document.getElementById('productosSeleccionados').appendChild(crearRowProducto(datosIniciales));
         }
 
-        document.getElementById('btnAgregarProducto')
-            .addEventListener('click', function () {
-                agregarProductoRow();
-            });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            actualizarBotonOperacion(document.getElementById('tipo_operacion').value);
+        document.getElementById('btnAgregarProducto').addEventListener('click', function () {
             agregarProductoRow();
         });
 
+        const operacionInicial = document.getElementById('tipo_operacion').value;
+        actualizarBotonOperacion(operacionInicial);
+        actualizarMotivos(operacionInicial);
+
+        if (productosAnteriores.length > 0) {
+            productosAnteriores.forEach(function (item) { agregarProductoRow(item); });
+        } else {
+            agregarProductoRow();
+        }
+
+        document.getElementById('formAjuste').addEventListener('submit', function (event) {
+            const filas = document.querySelectorAll('#productosSeleccionados .producto-row');
+            let formularioValido = true;
+
+            filas.forEach(function (fila) {
+                const hiddenId = fila.querySelector('.producto-id');
+                const inputBuscar = fila.querySelector('.producto-buscar');
+                const cantidadInput = fila.querySelector('.cantidad-producto');
+
+                inputBuscar.classList.remove('is-invalid');
+                cantidadInput.classList.remove('is-invalid');
+
+                if (!hiddenId.value) {
+                    inputBuscar.classList.add('is-invalid');
+                    formularioValido = false;
+                }
+
+                if (!cantidadInput.value || parseInt(cantidadInput.value, 10) < 1) {
+                    cantidadInput.classList.add('is-invalid');
+                    formularioValido = false;
+                }
+            });
+
+            let alerta = document.getElementById('alertaSeleccionProducto');
+
+            if (!formularioValido) {
+                event.preventDefault();
+
+                if (!alerta) {
+                    alerta = document.createElement('div');
+                    alerta.id = 'alertaSeleccionProducto';
+                    alerta.className = 'alert alert-danger mb-3';
+                    document.getElementById('productosSeleccionados').insertAdjacentElement('beforebegin', alerta);
+                }
+
+                alerta.textContent = 'Revisa los productos marcados en rojo: debes elegirlos de la lista de sugerencias y completar la cantidad.';
+            } else if (alerta) {
+                alerta.remove();
+            }
+        });
     </script>
 @endpush

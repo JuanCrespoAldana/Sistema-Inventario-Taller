@@ -103,12 +103,12 @@ class VentaService
             }
 
             return $venta;
-        });
+        }, 3); // reintenta automáticamente ante un deadlock por alta concurrencia
     }
 
     private function generarNumeroFactura(): string
     {
-        $ultimaVenta = Venta::orderBy('id', 'desc')->first();
+        $ultimaVenta = Venta::lockForUpdate()->orderBy('id', 'desc')->first();
 
         $numero = $ultimaVenta
             ? ((int) str_replace('FAC-', '', $ultimaVenta->numero_factura) + 1)

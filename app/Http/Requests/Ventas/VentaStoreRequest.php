@@ -15,7 +15,7 @@ class VentaStoreRequest extends FormRequest
     {
         return [
             'productos' => ['required', 'array', 'min:1'],
-            'productos.*.producto_id' => ['required', 'exists:productos,id'],
+            'productos.*.producto_id' => ['required', 'distinct', 'exists:productos,id'],
             'productos.*.cantidad' => ['required', 'integer', 'min:1'],
             'productos.*.descuento' => ['nullable', 'numeric', 'min:0'],
 
@@ -41,6 +41,7 @@ class VentaStoreRequest extends FormRequest
             'productos.min' => 'Debe agregar al menos un producto a la venta.',
             'productos.*.producto_id.required' => 'El producto es obligatorio.',
             'productos.*.producto_id.exists' => 'El producto seleccionado no es válido.',
+            'productos.*.producto_id.distinct' => 'No puedes repetir el mismo producto en la venta.',
             'productos.*.cantidad.required' => 'La cantidad es obligatoria.',
             'productos.*.cantidad.integer' => 'La cantidad debe ser un número entero.',
             'productos.*.cantidad.min' => 'La cantidad debe ser al menos 1.',

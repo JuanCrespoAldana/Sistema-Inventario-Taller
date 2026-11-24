@@ -15,30 +15,8 @@ class DashboardController extends Controller
 
     public function index()
     {
-        return view('dashboard.index', [
-
-            // ================= REPARACIONES =================
-            'repMes' => $this->service->reparacionesMes(),
-            'repActivas' => $this->service->reparacionesActivas(),
-            'ingRepMes' => $this->service->ingresosReparacionesMes(),
-
-            // ================= VENTAS =================
-            'ventasMes' => $this->service->ventasMes(),
-            'ingVentasMes' => $this->service->ingresosVentasMes(),
-            'topProductosHistorico' => $this->service->topProductosVendidosHistorico(),
-
-            // ================= INVENTARIO =================
-            'valorCompra' => $this->service->valorInventarioCompra(),
-            'valorVenta' => $this->service->valorInventarioVenta(),
-            'criticos' => $this->service->productosCriticos(),
-
-            // ================= TECNICOS =================
-            'productividad' => $this->service->productividadTecnicos(),
-            'productividad3m' => $this->service->productividadTecnicos(3),
-
-            // ================= GRAFICAS =================
-            'grafica12meses' => $this->service->ventasReparacionesUltimos12Meses(),
-
-        ]);
+        // Los datos se calculan en el servicio (13 consultas -> 10) y se guardan 30 s en caché;
+        // el caché se borra solo cuando se guarda una venta, orden, producto o movimiento.
+        return view('dashboard.index', $this->service->datosDashboard());
     }
 }

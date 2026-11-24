@@ -1,171 +1,181 @@
 @extends('layouts.app')
 
-@section('title', 'Movimientos de Inventario')
+@section('title', 'Movimientos')
+@section('page-icon', 'arrow-left-right')
+@section('page-title', 'Movimientos de inventario')
+@section('page-subtitle', 'Entradas, salidas y ajustes de stock registrados.')
 
-@section('page-title')
-    <i class="bi bi-arrow-left-right me-2"></i>
-    Movimientos de Inventario
+@section('page-actions')
+    <a href="{{ route('inventario.ajustes.index') }}" class="btn btn-primary">
+        <i class="bi bi-sliders"></i> Ajustar stock
+    </a>
 @endsection
 
 @section('content')
 
-    <div class="card shadow-sm border-0">
+    @php
+        $filtrosExtra = ['referencia', 'desde', 'hasta'];
+        $activosExtra = collect($filtrosExtra)->filter(fn($f) => request()->filled($f))->count();
+        $hayFiltros = request()->anyFilled(['buscar', 'tipo', 'referencia', 'desde', 'hasta']);
+        $tipoActual = request('tipo', '');
+        $pestanasTipo = [
+            '' => 'Todos',
+            'entrada' => 'Entradas',
+            'salida' => 'Salidas',
+            'ajuste' => 'Ajustes',
+        ];
+    @endphp
 
+    <div class="card filter-card">
         <div class="card-body">
+            <form method="GET" action="{{ route('inventario.movimientos.index') }}" autocomplete="off"
+                class="d-flex flex-column gap-3">
+                <input type="hidden" name="tipo" value="{{ $tipoActual }}">
 
-            {{-- ================= FILTROS ================= --}}
-            <form method="GET" class="mb-4">
-                <div class="row g-3 align-items-end justify-content-start">
-
-                    <div class="col-12 col-md-5">
-                        <label class="form-label fw-semibold text-muted small mb-1">
-                            <i class="bi bi-search me-1"></i> Buscar Producto
-                        </label>
-                        <input type="text" name="buscar" value="{{ request('buscar') }}" class="form-control rounded-3"
-                            placeholder="Código o nombre de la máquina...">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6 col-lg-5">
+                        <label class="form-label" for="buscar">Producto</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="buscar" name="buscar" value="{{ request('buscar') }}"
+                                class="form-control" placeholder="Código o nombre del producto">
+                        </div>
                     </div>
 
-                    <div class="col-12 col-md-3">
-                        <label class="form-label fw-semibold text-muted small mb-1">
-                            <i class="bi bi-filter-circle me-1"></i> Tipo de movimiento
-                        </label>
-                        <select name="tipo" class="form-select rounded-3">
-                            <option value="">Todos</option>
-                            <option value="entrada" {{ request('tipo') == 'entrada' ? 'selected' : '' }}>Entrada</option>
-                            <option value="salida" {{ request('tipo') == 'salida' ? 'selected' : '' }}>Salida</option>
-                            <option value="ajuste" {{ request('tipo') == 'ajuste' ? 'selected' : '' }}>Ajuste</option>
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label" for="orden">Ordenar por</label>
+                        <select id="orden" name="orden" class="form-select" data-auto>
+                            <option value="reciente" {{ request('orden', 'reciente') === 'reciente' ? 'selected' : '' }}>Más recientes</option>
+                            <option value="antiguo" {{ request('orden') === 'antiguo' ? 'selected' : '' }}>Más antiguos</option>
                         </select>
                     </div>
 
-                    <div class="col-12 col-md-4 d-flex gap-2 align-items-end">
-                        <button type="submit" class="btn btn-primary rounded-3 px-4">
-                            <i class="bi bi-search me-1"></i> Filtrar
-                        </button>
-                        <a href="{{ route('inventario.movimientos.index') }}" class="btn btn-outline-secondary rounded-3 px-3">
-                            <i class="bi bi-x-circle me-1"></i> Limpiar
-                        </a>
+                    <div class="col-lg-4">
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="bi bi-search"></i> Filtrar
+                            </button>
+                            <button type="button"
+                                class="btn btn-outline-secondary btn-filtros-extra {{ $activosExtra ? '' : 'collapsed' }}"
+                                data-bs-toggle="collapse" data-bs-target="#movimientosFiltrosExtra"
+                                aria-expanded="{{ $activosExtra ? 'true' : 'false' }}">
+                                Más filtros
+                                @if ($activosExtra)
+                                    <span class="filtro-count">{{ $activosExtra }}</span>
+                                @endif
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                            @if ($hayFiltros)
+                                <a href="{{ route('inventario.movimientos.index') }}" class="btn btn-outline-secondary"
+                                    title="Limpiar filtros">
+                                    <i class="bi bi-x-lg"></i>
+                                </a>
+                            @endif
+                        </div>
                     </div>
+                </div>
 
+                <div class="chip-row">
+                    <span class="chip-label">Tipo</span>
+                    @foreach ($pestanasTipo as $valor => $etiqueta)
+                        <a href="{{ request()->fullUrlWithQuery(['tipo' => $valor === '' ? null : $valor, 'page' => null]) }}"
+                            class="chip {{ (string) $tipoActual === (string) $valor ? 'activo' : '' }}">{{ $etiqueta }}</a>
+                    @endforeach
+
+                    <span class="chip-label chip-label-sep">Fecha</span>
+                    <button type="button" class="chip" data-rango="hoy">Hoy</button>
+                    <button type="button" class="chip" data-rango="semana">Últimos 7 días</button>
+                    <button type="button" class="chip" data-rango="mes">Este mes</button>
+                    <button type="button" class="chip" data-rango="mes_pasado">Mes pasado</button>
+                </div>
+
+                <div class="collapse filtros-extra {{ $activosExtra ? 'show' : '' }}" id="movimientosFiltrosExtra">
+                    <div class="row g-3">
+                        <div class="col-md-6 col-lg-4">
+                            <label class="form-label" for="referencia">Referencia</label>
+                            <input type="text" id="referencia" name="referencia" value="{{ request('referencia') }}"
+                                class="form-control" placeholder="Factura, compra o motivo">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label" for="desde">Desde</label>
+                            <input type="date" id="desde" name="desde" value="{{ request('desde') }}" class="form-control">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label" for="hasta">Hasta</label>
+                            <input type="date" id="hasta" name="hasta" value="{{ request('hasta') }}" class="form-control">
+                        </div>
+                    </div>
                 </div>
             </form>
-
-            {{-- ================= TABLA ================= --}}
-            <div class="table-responsive">
-
-                <table class="table table-hover align-middle movimientos-table">
-
-                    <colgroup>
-                        <col style="width:30px">
-                        <col style="width:80px">
-                        <col style="width:320px">
-                        <col style="width:100px">
-                        <col style="width:90px">
-                        <col style="width:170px">
-                        <col style="width:150px">
-                    </colgroup>
-
-                    <thead class="table-light">
-                        <tr>
-                            <th class="text-center">#</th>
-                            <th class="text-center">Código</th>
-                            <th>Producto</th>
-                            <th class="text-center">Tipo</th>
-                            <th class="text-center">Cantidad</th>
-                            <th class="text-center">Referencia</th>
-                            <th>Fecha</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        @forelse($movimientos as $mov)
-
-                            <tr>
-                                {{-- ID --}}
-                                <td class="text-center">
-                                    <div>{{ $mov->id }}</div>
-                                </td>
-
-                                {{-- Código --}}
-                                <td class="text-center">
-                                    <div>
-                                        <span class="badge bg-secondary">
-                                            {{ $mov->producto->codigo ?? '-' }}
-                                        </span>
-                                    </div>
-                                </td>
-
-                                {{-- Producto --}}
-                                <td>
-                                    <div title="{{ $mov->producto->nombre ?? '-' }}">
-                                        {{ $mov->producto->nombre ?? '-' }}
-                                    </div>
-                                </td>
-
-                                {{-- Tipo --}}
-                                <td class="text-center">
-                                    <div>
-                                        @if($mov->tipo == 'entrada')
-                                            <span class="badge bg-success">
-                                                <i class="bi bi-arrow-down-circle me-1"></i>
-                                                Entrada
-                                            </span>
-                                        @elseif($mov->tipo == 'salida')
-                                            <span class="badge bg-danger">
-                                                <i class="bi bi-arrow-up-circle me-1"></i>
-                                                Salida
-                                            </span>
-                                        @else
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="bi bi-pencil-square me-1"></i>
-                                                Ajuste
-                                            </span>
-                                        @endif
-                                    </div>
-                                </td>
-
-                                {{-- Cantidad --}}
-                                <td class="fw-bold text-center">
-                                    <div>{{ $mov->cantidad }}</div>
-                                </td>
-
-                                {{-- Referencia --}}
-                                <td class="text-center">
-                                    <div title="{{ $mov->referencia ?? '-' }}">
-                                        {{ $mov->referencia ?? '-' }}
-                                    </div>
-                                </td>
-
-                                {{-- Fecha --}}
-                                <td>
-                                    <div>
-                                        {{ $mov->created_at ? $mov->created_at->format('d/m/Y H:i') : '-' }}
-                                    </div>
-                                </td>
-
-                            </tr>
-
-                        @empty
-
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">
-                                    <i class="bi bi-inbox fs-4 d-block mb-2"></i>
-                                    No hay movimientos registrados
-                                </td>
-                            </tr>
-
-                        @endforelse
-                    </tbody>
-
-                </table>
-
-            </div>
-
-            {{-- ================= PAGINACIÓN ================= --}}
-            <div class="mt-3">
-                {{ $movimientos->links() }}
-            </div>
-
         </div>
+    </div>
+
+    <div class="result-summary">
+        <span><strong>{{ number_format($movimientos->total(), 0, ',', '.') }}</strong> {{ $movimientos->total() == 1 ? 'movimiento' : 'movimientos' }}{{ $hayFiltros ? ' con estos filtros' : '' }}</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Cantidad</th>
+                    <th>Referencia</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($movimientos as $mov)
+                    <tr>
+                        <td class="text-nowrap">
+                            {{ $mov->created_at ? $mov->created_at->format('d/m/Y H:i') : '—' }}
+                        </td>
+
+                        <td>
+                            <div class="cell-title">{{ $mov->producto->nombre ?? '—' }}</div>
+                            <div class="cell-code">{{ $mov->producto->codigo ?? '' }}</div>
+                        </td>
+
+                        <td class="text-center">
+                            @if ($mov->tipo == 'entrada')
+                                <span class="badge bg-success"><i class="bi bi-arrow-down-circle"></i> Entrada</span>
+                            @elseif ($mov->tipo == 'salida')
+                                <span class="badge bg-danger"><i class="bi bi-arrow-up-circle"></i> Salida</span>
+                            @else
+                                <span class="badge bg-warning"><i class="bi bi-pencil-square"></i> Ajuste</span>
+                            @endif
+                        </td>
+
+                        <td class="text-center fw-bold">
+                            @if ($mov->tipo == 'entrada')
+                                <span class="text-success">+{{ $mov->cantidad }}</span>
+                            @elseif ($mov->tipo == 'salida')
+                                <span class="text-danger">−{{ $mov->cantidad }}</span>
+                            @else
+                                {{ $mov->cantidad }}
+                            @endif
+                        </td>
+
+                        <td>{{ $mov->referencia ?? '—' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <strong>No hay movimientos para mostrar</strong>
+                                <span>{{ $hayFiltros ? 'Prueba con otros filtros.' : 'Los movimientos de stock aparecerán aquí.' }}</span>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="paginacion-wrap">
+        {{ $movimientos->links() }}
     </div>
 
 @endsection

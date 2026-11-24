@@ -19,6 +19,10 @@ class OrdenReparacion extends Model
         'created_at',
     ];
 
+    protected $casts = [
+        'fecha_entrada' => 'date',
+    ];
+
     /*
     |--------------------------------------------------------------------------
     | Relaciones
